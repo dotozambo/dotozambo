@@ -10,11 +10,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class DotozamboApplication {
 
-	@RequestMapping("/")
-	public String index() {
-		return "helloworld!";
+	@RequestMapping("/heart_beat")
+	public String healthCheck() {
+		return "Server Alive";
 	}
 	
+	@RequestMapping("/")
+    public String index(){
+
+		return "Welcome to Dotozambo";
+    }
+		
 	public static void main(String[] args) {
 		SpringApplication.run(DotozamboApplication.class, args);
 	}
