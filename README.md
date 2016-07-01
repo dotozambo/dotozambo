@@ -41,6 +41,5 @@ This Project is My Amazone Web Service Project
 	: https://brunch.co.kr/@brunchqvxt/1
 	
 ### 3. Ref
-
->	- Docker repo - dotozambo/dotozambo
-	- Git Menual - https://rogerdudler.github.io/git-guide/index.ko.html
+>* Docker repo - dotozambo/dotozambo
+* Git Menual - https://rogerdudler.github.io/git-guide/index.ko.html
