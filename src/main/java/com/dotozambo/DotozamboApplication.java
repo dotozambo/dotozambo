@@ -17,7 +17,6 @@ public class DotozamboApplication {
 	
 	@RequestMapping("/")
     public String index(){
-
 		return "Welcome to Dotozambo";
     }
 		
