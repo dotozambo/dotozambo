@@ -22,9 +22,27 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<java.version>1.8</java.version>
 		
+		<!-- docker Image Property -->
 		<docker.image.prefix>line-bot</docker.image.prefix>
-		
+		<!-- Local (Default) Resource Property -->
+		<env>local</env>		
 	</properties>
+
+	<!-- Local / Real Resource Property -->
+	<profiles>
+       <profile>
+           <id>local</id>
+           <properties>
+               <env>local</env>
+           </properties>
+       </profile>
+       <profile>
+           <id>real</id>
+           <properties>
+               <env>real</env>
+           </properties>
+       </profile>
+   </profiles>
 
 	<dependencies>
 		<dependency>
@@ -68,6 +86,13 @@
 				</configuration>
 			</plugin>
 		</plugins>
+		
+		<!-- Local / Real Resource Build -->
+		<resources>
+            <resource>
+                <directory>src/main/resources/${env}</directory>
+            </resource>
+        </resources>
 	</build>
 	
 

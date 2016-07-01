@@ -35,6 +35,7 @@ This Project is My Amazone Web Service Project
 > * ETC
 	: https://treewiki.s3.amazonaws.com/docker/springboot-aws-docker.html
 	: https://brunch.co.kr/@brunchqvxt/1
+	: http://seongtak-yoon.tistory.com/10 - Spring-boot HTTPS Local Setting
 
 ### 3. Release Command Synopsis
 
@@ -45,7 +46,7 @@ This Project is My Amazone Web Service Project
 			user@local$  git push
 			################### Local - Docker shell ####################
 			user@local-docker-shell$  cd "Source Directory" - at pom.xml
-			user@local-docker-shell$  mvn package docker:build
+			user@local-docker-shell$  mvn package [-P real] docker:build
 			user@local-docker-shell$ [docker login]
 			user@local-docker-shell$  docker push "image/tag"
 			######################## EC2 - shell #########################
@@ -57,3 +58,4 @@ This Project is My Amazone Web Service Project
 ### 4. Ref
 > * Docker repo - dotozambo/dotozambo
 * Git Menual - https://rogerdudler.github.io/git-guide/index.ko.html
+* Spring-boot Enviroment Setting - https://www.lesstif.com/pages/viewpage.action?pageId=14090588
