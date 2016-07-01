@@ -23,25 +23,27 @@
 		<java.version>1.8</java.version>
 		
 		<!-- docker Image Property -->
-		<docker.image.prefix>line-bot</docker.image.prefix>
+		<docker.image.prefix>dotozambo</docker.image.prefix>
 		<!-- Local (Default) Resource Property -->
 		<env>local</env>		
 	</properties>
 
 	<!-- Local / Real Resource Property -->
 	<profiles>
+		<profile>
+           <id>real</id>
+           <properties>
+               <env>real</env>
+           </properties>
+       </profile>
+       
        <profile>
            <id>local</id>
            <properties>
                <env>local</env>
            </properties>
        </profile>
-       <profile>
-           <id>real</id>
-           <properties>
-               <env>real</env>
-           </properties>
-       </profile>
+       
    </profiles>
 
 	<dependencies>
