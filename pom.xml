@@ -25,7 +25,7 @@
 		<!-- docker Image Property -->
 		<docker.image.prefix>dotozambo</docker.image.prefix>
 		<!-- Local (Default) Resource Property -->
-		<env>local</env>		
+		<env>local</env>
 	</properties>
 
 	<!-- Local / Real Resource Property -->

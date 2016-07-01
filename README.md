@@ -54,14 +54,15 @@ This Project is My Amazone Web Service Project
     user@local$  git push
     ################### Local - Docker shell ####################
     user@local-docker-shell$  cd "Source Directory" - at pom.xml
-    user@local-docker-shell$  mvn clean package [-P real] docker:build
+    user@local-docker-shell$  mvn clean package [-P real] [-Dmaven.test.skip=true] docker:build
     user@local-docker-shell$ [docker login]
     user@local-docker-shell$  docker push "image/tag"
     ######################## EC2 - shell #########################
     ec2-user@shell$ [docker login]
     ec2-user@shell$  docker pull "image/"tag"
     ec2-user@shell$ [docker kill "container ID"
-    ec2-user@shell$  docker run -p "port:port" -t "image/tag"
+    ec2-user@shell$  docker run [--env arg1=ARG1 --env arg2=ARG2] -p "port:port" -t "image/tag"
+    
 	
 ### 4. Ref
 > 
