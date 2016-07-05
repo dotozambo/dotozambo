@@ -32,6 +32,11 @@ This Project is My Amazone Web Service Project
 	: http://wingsnote.com/57  
 	* ELB HTTPS Domain Setting  
 	: http://wildpup.cafe24.com/archives/867  
+
+>
+* DB Setting (DB Instance)  
+	* CUBRID 10.0.0  
+	: http://www.cubrid.org/manual/92/ko/install.html  
 	
 > 
 * Postfix Mail Server Setting  
