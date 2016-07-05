@@ -35,8 +35,10 @@ This Project is My Amazone Web Service Project
 
 >
 * DB Setting (DB Instance)  
-	* CUBRID 10.0.0  
+	* CUBRID 10.0.0  Install  
 	: http://www.cubrid.org/manual/92/ko/install.html  
+	* CUBRID Port Setting  
+	: http://www.cubrid.org/wiki_tutorials/entry/getting-started-with-cubrid-database-ami-amazon-machine-image  
 	
 > 
 * Postfix Mail Server Setting  
