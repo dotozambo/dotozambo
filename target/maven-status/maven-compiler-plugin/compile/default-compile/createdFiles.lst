@@ -34,6 +34,7 @@ com/linecorp/bot/model/rich/RichMessage.class
 com/linecorp/bot/client/exception/LineBotAPISignatureException.class
 com/linecorp/bot/model/content/VideoContent.class
 com/linecorp/bot/model/callback/Event.class
+com/dotozambo/DAO/ChatMembersDAO.class
 com/linecorp/bot/client/exception/LineBotAPIException.class
 com/linecorp/bot/model/content/TextContent.class
 com/linecorp/bot/model/callback/CallbackRequest.class

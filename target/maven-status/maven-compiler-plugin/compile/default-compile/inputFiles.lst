@@ -61,6 +61,7 @@
 /Users/NAVER/Documents/workspace-sts-3.7.3.RELEASE/linebot/src/main/java/com/linecorp/bot/client/exception/LineBotAPIInvalidURIException.java
 /Users/NAVER/Documents/workspace-sts-3.7.3.RELEASE/linebot/src/main/java/com/linecorp/bot/client/exception/LineBotAPIIOException.java
 /Users/NAVER/Documents/workspace-sts-3.7.3.RELEASE/linebot/src/main/java/com/linecorp/bot/model/content/ContactContent.java
+/Users/NAVER/Documents/workspace-sts-3.7.3.RELEASE/linebot/src/main/java/com/dotozambo/DAO/ChatMembersDAO.java
 /Users/NAVER/Documents/workspace-sts-3.7.3.RELEASE/linebot/src/main/java/com/linecorp/bot/model/profile/UserProfileResponse.java
 /Users/NAVER/Documents/workspace-sts-3.7.3.RELEASE/linebot/src/main/java/com/linecorp/bot/model/content/metadata/StickerContentMetadata.java
 /Users/NAVER/Documents/workspace-sts-3.7.3.RELEASE/linebot/src/main/java/com/linecorp/bot/model/rich/RichMessage.java

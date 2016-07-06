@@ -1,7 +1,5 @@
 package com.dotozambo;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.linecorp.bot.client.DefaultLineBotClient;
+import com.dotozambo.DAO.ChatMembersDAO;
 import com.linecorp.bot.client.LineBotClient;
 import com.linecorp.bot.client.exception.LineBotAPIException;
 import com.linecorp.bot.model.callback.Event;
@@ -26,15 +24,11 @@ import com.linecorp.bot.spring.boot.annotation.LineBotMessages;
 import lombok.extern.slf4j.Slf4j;
 
 
-
 @SpringBootApplication
 @RestController
-@ComponentScan("com.linecorp")
+@ComponentScan("com")
 @Slf4j
 public class DotozamboApplication {
-	
-	//Chat Member 
-	static List<String> memberMIDsArry;
 	
 	static String notSupportMsg = "[Dotozambo] : Sorry.., It does Not Supprot Messages!";
 	static String welcomeMsg = "[Dotozambo] : Welcome to My friend!";
@@ -49,9 +43,9 @@ public class DotozamboApplication {
 		return "Welcome to Dotozambo";
     }
 	
+	
+	
 	public static void main(String[] args) {
-		
-		memberMIDsArry = new ArrayList<String>();
 		SpringApplication.run(DotozamboApplication.class, args);
 	}
 	
@@ -60,6 +54,9 @@ public class DotozamboApplication {
 		
 		@Autowired
         private LineBotClient lineBotClient;
+		
+		@Autowired
+		ChatMembersDAO chatMemberDAO;
 		
 		@RequestMapping("/line_bot_callback")
         public void callback(@LineBotMessages List<Event> events) throws LineBotAPIException 
@@ -89,19 +86,21 @@ public class DotozamboApplication {
             	}
             	//Operation
             	else if (abOperation != null) {
+            		
+            		String userMID = null;
+            		
             		if (abOperation instanceof AddedAsFriendOperation) {
             			//Added Friend
-            			lineBotClient.sendText(abOperation.getMid(), welcomeMsg);
+            			userMID = abOperation.getMid();
             			
-            			memberMIDsArry.add(abOperation.getMid());
-            			memberMIDsArry = new ArrayList<String>(new HashSet<String>(memberMIDsArry));
-            			
+            			lineBotClient.sendText(userMID, welcomeMsg);
+            			chatMemberDAO.addMember(userMID, "admin");
+            	
             		}
             		if (abOperation instanceof BlockedOperation) {
             			//Blocked Frend
-            			String userMID = abOperation.getMid();
-            			memberMIDsArry.remove(userMID);
-            			memberMIDsArry = new ArrayList<String>(new HashSet<String>(memberMIDsArry));
+            			userMID = abOperation.getMid();
+            			chatMemberDAO.deleteMember(userMID);
             		}
             	}
             }
@@ -111,16 +110,17 @@ public class DotozamboApplication {
 		public String toLinebotSendMessage(@RequestParam("msg") String sendMsg) throws LineBotAPIException 
 		{
 			String noticeMsg = "Notice : " + sendMsg;
-			String returnStr = "";
 			
-			for (int i = 0; i < memberMIDsArry.size(); i++)
-			{
-				lineBotClient.sendText(memberMIDsArry.get(i), noticeMsg);
-				returnStr = returnStr + memberMIDsArry.get(i);
-				returnStr = returnStr + "<br>";
+			List <String> membersMids = chatMemberDAO.selectMember("");
+			String toUser = "";
+			for (String mid : membersMids) {
+				mid = mid.trim();
+				toUser = "<br>" + toUser + "mid - " + mid;
+				
+				lineBotClient.sendText(mid, noticeMsg);
 			}
-			
-			return returnStr;
+			noticeMsg = noticeMsg + toUser;
+			return noticeMsg;
 		}
 	}
 }

@@ -45,7 +45,15 @@
        </profile>
        
    </profiles>
-
+   
+   <repositories>
+   		<repository>  
+			<id>CUBRID</id>
+			<name>CUBRID-releases</name>
+			<url>http://maven.cubrid.org</url>
+		</repository>
+	</repositories>
+	
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -63,15 +71,28 @@
     		<artifactId>commons-collections</artifactId>
     	</dependency>
     	
-    	<!-- mysql -->
+    	<dependency>
+			<groupId>cubrid</groupId>
+			<artifactId>cubrid-jdbc</artifactId>
+			<version>10.0.0.1376</version>
+		</dependency>
+    	
+    	<!-- jdbc starter -->
     	<dependency>
     		<groupId>org.springframework.boot</groupId>
-    		<artifactId>spring-boot-starter-data-jpa</artifactId>
+    		<artifactId>spring-boot-starter-tomcat</artifactId>
+    		<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
-         	<groupId>mysql</groupId>
-         	<artifactId>mysql-connector-java</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-jdbc</artifactId>
+		</dependency>
+    	
+    	<!-- https://mvnrepository.com/artifact/org.springframework/spring-jdbc -->
+		<dependency>
+    		<groupId>org.springframework</groupId>
+    		<artifactId>spring-jdbc</artifactId>
 		</dependency>
     	
     	<!-- Below Line Bot Module Needed-->
@@ -92,7 +113,7 @@
     		<artifactId>commons-io</artifactId>
     		<version>2.5</version>
 		</dependency>
-    	
+
 	</dependencies>
 	
 	<build>
