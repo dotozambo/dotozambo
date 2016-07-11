@@ -35,3 +35,5 @@ Thumbs.db
 
 # Private #
 application.properties
+/.apt_generated/
+/target/
