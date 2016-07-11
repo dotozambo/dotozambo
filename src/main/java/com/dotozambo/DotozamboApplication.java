@@ -6,15 +6,18 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.HttpURLConnection;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.dotozambo.DAO.ChatMembersDAO;
 import com.linecorp.bot.client.LineBotClient;
@@ -124,8 +128,12 @@ public class DotozamboApplication {
         }
 		
 		@RequestMapping("/line_bot_send_notice")
-		public String toLinebotSendMessage(@RequestParam("msg") String sendMsg) throws LineBotAPIException, UnsupportedEncodingException 
+		public String toLinebotSendMessage(
+				@RequestParam("msg") String msg,
+				HttpServletRequest request) throws LineBotAPIException, UnsupportedEncodingException 
 		{
+			String sendMsg = URLDecoder.decode(msg, "utf-8");
+			sendMsg = sendMsg.replaceAll("%5Cn", "%0A");
 			String noticeMsg = "Notice : " + sendMsg;
 			
 			List<Map <String, String>> members = chatMemberDAO.selectMember();
@@ -181,7 +189,7 @@ public class DotozamboApplication {
 		}
 		
 		@RequestMapping("/getTodayGames")
-		public ModelAndView getTodayGames() throws IOException 
+		public ModelAndView getTodayGames(RedirectAttributes redirectAttributes) throws IOException 
 		{
 			//Date today = new Date();
 			//SimpleDateFormat dateFormater = new SimpleDateFormat("yyyyMMdd");
@@ -196,19 +204,27 @@ public class DotozamboApplication {
 			
 			Elements games = scheduleBox.getElementsByClass("hmb_list_items");
 			
-			String table = date + "<br>";
+			String table = "\n***************\n[" + date + "]\n***************\n";
 			for (Element _div : games) 
 			{
-				String list = "";
-				Elements detail = _div.getElementsByTag("span");
-				String away_team = detail.get(0).text();
-				String away_sp = detail.get(1).text();
-				String home_team = detail.get(2).text();
-				String home_sp = detail.get(3).text();
+				Elements detail = _div.getElementsByClass("inner");
 				
-				list = "("+ away_sp +")" + away_team + ": Away VS Home : "  + home_team + "("+ home_sp + ")<br>";
-				table = table + list;
+				Element awayDiv = detail.get(0);
+				String away_team = awayDiv.text().split(" ")[0];
+				String away_starter = awayDiv.text().split(" ")[1];
+				
+				Element homeDiv = detail.get(1);
+				String home_team = homeDiv.text().split(" ")[0];
+				String home_starter = homeDiv.text().split(" ")[1];
+				
+				Element timeDiv = detail.get(2);
+				
+				String line = new String(String.format("%s (%s)\n[%s]\n%s (%s)\n***************\n",
+								away_team, away_starter, timeDiv.text(), home_team, home_starter));
+				table = table + line;
 			}
+			
+			table = URLEncoder.encode(table, "utf-8");
 			
 			return new ModelAndView("redirect:/line_bot_send_notice?msg=" + table);
 		}
