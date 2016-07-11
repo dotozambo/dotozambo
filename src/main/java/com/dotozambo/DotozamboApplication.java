@@ -1,19 +1,32 @@
 package com.dotozambo;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.catalina.util.URLEncoder;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.data.elasticsearch.annotations.DateFormat;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.ModelAndView;
 
 import com.dotozambo.DAO.ChatMembersDAO;
 import com.linecorp.bot.client.LineBotClient;
@@ -46,8 +59,6 @@ public class DotozamboApplication {
     public String index(){
 		return "Welcome to Dotozambo";
     }
-	
-	
 	
 	public static void main(String[] args) {
 		SpringApplication.run(DotozamboApplication.class, args);
@@ -136,5 +147,99 @@ public class DotozamboApplication {
 			noticeMsg = noticeMsg + toUser;
 			return noticeMsg;
 		}
+		
+		@RequestMapping("/kboschedule")
+		public String kobSchedule(@RequestParam("month") int month, @RequestParam("year") int year) throws IOException 
+		{
+			String naverSportsKbaseballUrl = new String(String.format("http://sports.news.naver.com/kbaseball/schedule/index.nhn?month=%2d&year=%4d", month, year));
+			String res = sendGet(naverSportsKbaseballUrl);
+			
+			Document doc = Jsoup.parse(res);
+			Element totalDiv = doc.getElementsByClass("tb_wrap").get(0);
+			Elements divList = totalDiv.getElementsByTag("div");
+			
+			String ret = "";
+			for (int i = 1; i < divList.size(); i++) 
+			{
+				Element div = divList.get(i);
+				Elements date = div.getElementsByClass("td_date");
+			
+				if (div.text().isEmpty() || date.text().isEmpty()) continue; //Not yet Playing Game
+				
+				String versus = "";
+				for (int j = 0; j < 5; j++) 
+				{
+					Elements away_team = div.getElementsByClass("team_lft");
+					Elements home_team = div.getElementsByClass("team_rgt");
+					
+					if (away_team.text().isEmpty() || home_team.text().isEmpty()) break; //No Game
+					
+					versus = versus + "<br>" + 
+							away_team.get(j).text() + ": [A] vs [H] : " + home_team.get(j).text() + "<br>";
+				}
+				
+				ret = ret + "<br>" + date.text() + "<br>" + versus;
+			}
+			
+			return ret;
+		}
+		
+		@RequestMapping("/getTodayGames")
+		public ModelAndView getTodayGames() throws IOException 
+		{
+			//Date today = new Date();
+			//SimpleDateFormat dateFormater = new SimpleDateFormat("yyyyMMdd");
+			//String dateStr = dateFormater.format(today);
+			
+			String naverUrl = "http://sports.news.naver.com/kbaseball/index.nhn";
+			String res = sendGet(naverUrl);
+			Document doc = Jsoup.parse(res);
+			
+			Element scheduleBox = doc.getElementById("_schedule_box");
+			String date = scheduleBox.getElementsByClass("day").get(0).text();
+			
+			Elements games = scheduleBox.getElementsByClass("hmb_list_items");
+			
+			String table = date + "<br>";
+			for (Element _div : games) 
+			{
+				String list = "";
+				Elements detail = _div.getElementsByTag("span");
+				String away_team = detail.get(0).text();
+				String away_sp = detail.get(1).text();
+				String home_team = detail.get(2).text();
+				String home_sp = detail.get(3).text();
+				
+				list = "("+ away_sp +")" + away_team + ": Away VS Home : "  + home_team + "("+ home_sp + ")<br>";
+				table = table + list;
+			}
+			
+			return new ModelAndView("redirect:/line_bot_send_notice?msg=" + table);
+		}
+	}
+	private static String sendGet(String getUrl) throws IOException 
+	{
+		URL obj = new URL(getUrl);
+		String USER_AGENT = "Mozilla/5.0";
+		
+		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+		con.setRequestProperty("User-Agent", USER_AGENT);
+		con.setRequestMethod("GET");
+		
+		int responseCode = con.getResponseCode();
+		log.debug("\nSending 'GET' request to URL : {}" + getUrl);
+		log.debug("Response Code : {}" + responseCode);
+		
+		BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+		String inputLine;
+		StringBuffer response = new StringBuffer();
+
+		while ((inputLine = in.readLine()) != null) {
+			response.append(inputLine);
+		}
+		in.close();
+		
+		log.debug("Response : {}" + response.toString());
+		return response.toString();
 	}
 }
