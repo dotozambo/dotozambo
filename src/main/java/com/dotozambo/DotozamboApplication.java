@@ -31,7 +31,11 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.dotozambo.DAO.ChatMembersDAO;
+import com.dotozambo.DAO.HitterRecordDAO;
+import com.dotozambo.DAO.PitcherRecordDAO;
 import com.dotozambo.DAO.ScoreBoardDAO;
+import com.dotozambo.Model.HitterRecord;
+import com.dotozambo.Model.PitcherRecord;
 import com.dotozambo.Model.ScoreBoard;
 import com.linecorp.bot.client.LineBotClient;
 import com.linecorp.bot.client.exception.LineBotAPIException;
@@ -80,6 +84,10 @@ public class DotozamboApplication {
 		ChatMembersDAO chatMemberDAO;
 		@Autowired
 		ScoreBoardDAO scoreBoardDAO;
+		@Autowired
+		HitterRecordDAO hitterRecordDAO;
+		@Autowired
+		PitcherRecordDAO pitcherRecordDAO;
 		
 		@RequestMapping("/line_bot_callback")
         public void callback(@LineBotMessages List<Event> events) throws LineBotAPIException, UnsupportedEncodingException 
@@ -219,6 +227,7 @@ public class DotozamboApplication {
 			//Get Scorebox values
 			//ScoreBox
 			//[date], away_team, home_team, away_score, home_score, away_r, away_h, away_e, away_b, home_r, home_h, home_e, home_b
+			///////////////////////////////////////////////////////////////////////////
 			Element socreBoardTable = doc.getElementsByClass("socreBoard").get(0);
 			socreBoardTable = socreBoardTable.getElementsByTag("tbody").get(0);
 			Element awayScoreTr = socreBoardTable.getElementsByTag("tr").get(0);
@@ -230,45 +239,56 @@ public class DotozamboApplication {
 			Map <String, Object> scoreMap = new HashMap<String, Object>();
 			scoreMap.put("away", awayScoreMap);
 			scoreMap.put("home", homeScoreMap);
-			
-			ScoreBoard sb = new ScoreBoard(scoreMap, "20160401");
-			scoreBoardDAO.addScoreBoard(sb);
-			
+			////////////////////////////////////////////////////////////////////////////
 			//Hitter
 			//[date], team_code, [name], stadium, [order], num, [position], record, ab, h, rbi, r, [avg]
 			Element boxscoreDiv = doc.getElementsByClass("boxscore").get(0);
 			Element awayHitterTable = boxscoreDiv.getElementsByClass("tData").get(0);
 			awayHitterTable = awayHitterTable.getElementsByTag("tbody").get(0);
 			Elements awayHitterTr = awayHitterTable.getElementsByTag("tr");
-			String awayHitterResult = getHitterResult(awayHitterTr, inningSize);		
-			
+			List<Map<String, Object>> awayHitterResult = getHitterResult(awayHitterTr, inningSize);		
+			////////////////////////////////////////////////////////////////////////////
 			Element homeHitterTable = boxscoreDiv.getElementsByClass("tData").get(1);
 			homeHitterTable = homeHitterTable.getElementsByTag("tbody").get(0);
 			Elements homeHitterTr = homeHitterTable.getElementsByTag("tr");
-			String homeHitterResult = getHitterResult(homeHitterTr, inningSize);	
-			
+			List<Map<String, Object>> homeHitterResult = getHitterResult(homeHitterTr, inningSize);	
+			////////////////////////////////////////////////////////////////////////////
 			//Pitcher
 			//[date], stadium, num, [name], si, result, w, l,	sv, ip, tbf, np, pa, h, hr, hbp, so, r, er, era
 			Element awayPitcherTable = boxscoreDiv.getElementsByClass("tData").get(2);
 			awayPitcherTable = awayPitcherTable.getElementsByTag("tbody").get(0);
 			Elements awayPitcherTr = awayPitcherTable.getElementsByTag("tr");
-			String awayPitcherResult = getPitcherResult(awayPitcherTr);
-			
+			List<Map<String, Object>> awayPitcherResult = getPitcherResult(awayPitcherTr);
+			/////////////////////////////////////////////////////////////////////////////
 			Element homePitcherTable = boxscoreDiv.getElementsByClass("tData").get(3);
 			homePitcherTable = homePitcherTable.getElementsByTag("tbody").get(0);
 			Elements homePitcherTr = homePitcherTable.getElementsByTag("tr");
-			String homePitcherResult = getPitcherResult(homePitcherTr);
+			List<Map<String, Object>> homePitcherResult = getPitcherResult(homePitcherTr);
+			//////////////////////////////////////////////////////////////////////////////
+			ScoreBoard sb = new ScoreBoard(scoreMap, date);
+			//scoreBoardDAO.addScoreBoard(sb);
+			for (Map<String, Object> hitter : awayHitterResult)	{
+				HitterRecord away_hr = new HitterRecord(hitter, date, awayTCode, "away");
+				//hitterRecordDAO.addHitterRecord(away_hr);
+			}
+			for (Map<String, Object> hitter : homeHitterResult)	{
+				HitterRecord home_hr = new HitterRecord(hitter, date, homeTCode, "home");
+				//hitterRecordDAO.addHitterRecord(home_hr);
+			}
+			for (Map<String, Object> pitcher : awayPitcherResult) {
+				PitcherRecord away_pr = new PitcherRecord(pitcher, date, awayTCode, "away");
+				//pitcherRecordDAO.addPitcherRecord(away_pr);
+			}
+			for (Map<String, Object> pitcher : homePitcherResult) {
+				PitcherRecord home_pr = new PitcherRecord(pitcher, date, awayTCode, "home");
+				//pitcherRecordDAO.addPitcherRecord(home_pr);
+			}
 			
-			//Insert Scorebox DB
-			//Insert Home Hitter Record
-			//Insert Away Hitter Record
-			//Insert Home Pitcher Record
-			//Insert Away Picher Record
-			
-			String result = "<br><br>" + awayHitterResult.replaceAll("\n", "<br>") + "<br>" + homeHitterResult.replaceAll("\n", "<br>") + "<br>"
-					+ "<br><br>" + awayPitcherResult.replaceAll("\n", "<br>") + "<br>" + homePitcherResult.replaceAll("\n", "<br>") + "<br>";
-			
-			return result;
+			return sb + "<br>" +
+				   awayHitterResult + "<br>" +
+				   homeHitterResult + "<br>" +
+				   awayPitcherResult + "<br>" +
+				   homePitcherResult + "<br>";
 		}
 		
 		@RequestMapping("/getTodayGames")
@@ -336,76 +356,71 @@ public class DotozamboApplication {
 		return resultMap;
 	}
 	
-	private static String getHitterResult(Elements hitterelements, int inningSize) 
+	private static List <Map <String, Object>> getHitterResult(Elements hitterelements, int inningSize) 
 	{
-		String result = "";
+		List <Map <String, Object>> hitterList = new ArrayList<Map <String, Object>>();
 		int preOrder = 0;
 		int num = 0;
 		for (Element hitter : hitterelements)
 		{
-			String person = "";
-			String order = hitter.getElementsByTag("th").get(0).text();
+			Map<String, Object> person = new HashMap<String, Object>();
+			person.put("order", hitter.getElementsByTag("th").get(0).text());
+			person.put("position", hitter.getElementsByTag("th").get(1).text());
+			person.put("name", hitter.getElementsByTag("th").get(2).text());
 			
-			String postion = hitter.getElementsByTag("th").get(1).text();
-			String name = hitter.getElementsByTag("th").get(2).text();
-			
-			List<String> record = new ArrayList<String>(inningSize);
+			List<String> recordArray = new ArrayList<String>(inningSize);
 			for (int i = 0; i < inningSize - 4; i++) {
-				record.add(hitter.getElementsByTag("td").get(i).text());
+				recordArray.add(hitter.getElementsByTag("td").get(i).text());
 			}
+			person.put("record", recordArray.toString().substring(1, recordArray.toString().length() - 1));
+			person.put("ab", hitter.getElementsByAttribute("abbr").get(0).text());
+			person.put("h", hitter.getElementsByAttribute("abbr").get(1).text());
+			person.put("rbi", hitter.getElementsByAttribute("abbr").get(2).text());
+			person.put("r", hitter.getElementsByAttribute("abbr").get(3).text());
+			person.put("avg", hitter.getElementsByAttribute("abbr").get(4).text());
 			
-			String ab = hitter.getElementsByAttribute("abbr").get(0).text();
-			String h = hitter.getElementsByAttribute("abbr").get(1).text();
-			String rbi = hitter.getElementsByAttribute("abbr").get(2).text();
-			String r = hitter.getElementsByAttribute("abbr").get(3).text();
-			String avg = hitter.getElementsByAttribute("abbr").get(4).text();
-			
-			int curOrder = Integer.parseInt(order);
+			int curOrder = Integer.valueOf((String) person.get("order"));
 			if (preOrder == curOrder) num++;
 			else num = 0; preOrder = curOrder;
+			person.put("num", num);
 			
-			person = new String(String.format("%s, %d, %s, %s, [%s], %s, %s, %s, %s, %s\n", 
-												order, num, postion, name, record.toString(), ab, h, rbi, r, avg));
-			
-			result = result + person;
+			hitterList.add(person);
 		}
 		
-		return result;
+		return hitterList;
 	}
 	
 	//Pitcher
 	//[date], stadium, num, [name], si, result, w, l,	sv, ip, tbf, np, pa, h, hr, hbp, so, r, er, era
-	private static String getPitcherResult(Elements pitcherelements)
+	private static List <Map <String, Object>> getPitcherResult(Elements pitcherelements)
 	{
-		String result = "";
+		List <Map <String, Object>> pitcherList = new ArrayList<Map <String, Object>>();
 		for (Element pitcher : pitcherelements)
 		{
-			String person = "";
-			String name = pitcher.getElementsByClass("name").get(0).text();
-			String si = pitcher.getElementsByTag("td").get(0).text();
-			String _result = pitcher.getElementsByTag("td").get(1).text();
-			String w = pitcher.getElementsByTag("td").get(2).text();
-			String l = pitcher.getElementsByTag("td").get(3).text();
-			String sv = pitcher.getElementsByTag("td").get(4).text();
-			String ip = pitcher.getElementsByTag("td").get(5).text();
-			String tbf = pitcher.getElementsByTag("td").get(6).text();
-			String np = pitcher.getElementsByTag("td").get(7).text();
-			String pa = pitcher.getElementsByTag("td").get(8).text();
-			String h = pitcher.getElementsByTag("td").get(9).text();
-			String hr = pitcher.getElementsByTag("td").get(10).text();
-			String hbp = pitcher.getElementsByTag("td").get(11).text();
-			String so = pitcher.getElementsByTag("td").get(12).text();
-			String r = pitcher.getElementsByTag("td").get(13).text();
-			String er = pitcher.getElementsByTag("td").get(14).text();
-			String era = pitcher.getElementsByTag("td").get(15).text();
+			Map<String, Object> person = new HashMap<String, Object>();
 			
-			person = new String(String.format("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s\n", 
-												name, si, _result, w, l, sv, ip, tbf, np, pa, h, hr, hbp, so, r, er,era));
+			person.put("name", pitcher.getElementsByClass("name").get(0).text());
+			person.put("si", pitcher.getElementsByTag("td").get(0).text());
+			person.put("result", pitcher.getElementsByTag("td").get(1).text());
+			person.put("w", pitcher.getElementsByTag("td").get(2).text());
+			person.put("l", pitcher.getElementsByTag("td").get(3).text());
+			person.put("sv", pitcher.getElementsByTag("td").get(4).text());
+			person.put("ip", pitcher.getElementsByTag("td").get(5).text());
+			person.put("tbf", pitcher.getElementsByTag("td").get(6).text());
+			person.put("np", pitcher.getElementsByTag("td").get(7).text());
+			person.put("pa", pitcher.getElementsByTag("td").get(8).text());
+			person.put("h", pitcher.getElementsByTag("td").get(9).text());
+			person.put("hr", pitcher.getElementsByTag("td").get(10).text());
+			person.put("bb", pitcher.getElementsByTag("td").get(11).text());
+			person.put("so", pitcher.getElementsByTag("td").get(12).text());
+			person.put("r", pitcher.getElementsByTag("td").get(13).text());
+			person.put("er", pitcher.getElementsByTag("td").get(14).text());
+			person.put("era", pitcher.getElementsByTag("td").get(15).text());
 			
-			result = result + person;
+			pitcherList.add(person);
 		}
 		
-		return result;
+		return pitcherList;
 	}
 	
 	private static String sendGet(String getUrl) throws IOException 

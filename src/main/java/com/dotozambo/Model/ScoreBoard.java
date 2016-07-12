@@ -50,6 +50,5 @@ public class ScoreBoard {
 		this.home_h = Integer.parseInt((String) homeMap.get("home_h"));
 		this.home_e = Integer.parseInt((String) homeMap.get("home_e"));
 		this.home_b = Integer.parseInt((String) homeMap.get("home_b"));
-		
     }
 }

@@ -19,7 +19,7 @@ public class ScoreBoardDAO
     public int addScoreBoard(ScoreBoard sb) throws UnsupportedEncodingException 
     {
     	String sql = "INSERT INTO scoreboard([date], away_team, home_team, away_score, home_score, away_r, away_h, away_e, away_b, home_r, home_h, home_e, home_b) "
-    								+ "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    								+ " values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     	
     	Object[] args = {sb.getDate(), 
     					 sb.getAway_team(), sb.getHome_team(), 
