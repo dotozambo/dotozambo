@@ -9,6 +9,8 @@ import java.net.HttpURLConnection;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +31,8 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.dotozambo.DAO.ChatMembersDAO;
+import com.dotozambo.DAO.ScoreBoardDAO;
+import com.dotozambo.Model.ScoreBoard;
 import com.linecorp.bot.client.LineBotClient;
 import com.linecorp.bot.client.exception.LineBotAPIException;
 import com.linecorp.bot.model.callback.Event;
@@ -49,6 +53,8 @@ import lombok.extern.slf4j.Slf4j;
 public class DotozamboApplication {
 	
 	static String notSupportMsg = "[Dotozambo] : Sorry.., It does Not Supprot Messages!";
+	
+	static int inningSize = 12;
 	
 	@RequestMapping("/heart_beat")
 	public String healthCheck() {
@@ -72,6 +78,8 @@ public class DotozamboApplication {
 		
 		@Autowired
 		ChatMembersDAO chatMemberDAO;
+		@Autowired
+		ScoreBoardDAO scoreBoardDAO;
 		
 		@RequestMapping("/line_bot_callback")
         public void callback(@LineBotMessages List<Event> events) throws LineBotAPIException, UnsupportedEncodingException 
@@ -188,6 +196,81 @@ public class DotozamboApplication {
 			return ret;
 		}
 		
+		@RequestMapping("/saveRecord")
+		public String saveRecord(@RequestParam("date") String date,
+								 @RequestParam("homeTCode") String homeTCode,
+								 @RequestParam("awayTCode") String awayTCode) throws IOException 
+		{
+			//Get Scorebox URL (Date / Home Team Code / Away Team Code)
+			//http://www.koreabaseball.com/Schedule/Game/BoxScore.aspx?leagueId=1&seriesId=0&gameId=20160401HHLG0&gyear=2016
+			
+			String year = date.substring(0, 4);
+			String month = date.substring(4, 6);
+			String day = date.substring(6, 8);
+			
+			String scoreBoxUrl = "http://www.koreabaseball.com/Schedule/Game/BoxScore.aspx";
+			String requestUrl = new String(String.format(
+					"%s?leagueId=1&seriesId=0&gameId=%s%s%s%s%s0&gyear=%s", 
+					scoreBoxUrl, year, month, day, awayTCode, homeTCode, year));
+			
+			String res = sendGet(requestUrl);
+			Document doc = Jsoup.parse(res);
+			
+			//Get Scorebox values
+			//ScoreBox
+			//[date], away_team, home_team, away_score, home_score, away_r, away_h, away_e, away_b, home_r, home_h, home_e, home_b
+			Element socreBoardTable = doc.getElementsByClass("socreBoard").get(0);
+			socreBoardTable = socreBoardTable.getElementsByTag("tbody").get(0);
+			Element awayScoreTr = socreBoardTable.getElementsByTag("tr").get(0);
+			Map <String, Object> awayScoreMap = getScoreBoard(awayScoreTr, "away");
+			
+			Element homeScoreTr = socreBoardTable.getElementsByTag("tr").get(1);
+			Map <String, Object> homeScoreMap = getScoreBoard(homeScoreTr, "home");
+			
+			Map <String, Object> scoreMap = new HashMap<String, Object>();
+			scoreMap.put("away", awayScoreMap);
+			scoreMap.put("home", homeScoreMap);
+			
+			ScoreBoard sb = new ScoreBoard(scoreMap, "20160401");
+			scoreBoardDAO.addScoreBoard(sb);
+			
+			//Hitter
+			//[date], team_code, [name], stadium, [order], num, [position], record, ab, h, rbi, r, [avg]
+			Element boxscoreDiv = doc.getElementsByClass("boxscore").get(0);
+			Element awayHitterTable = boxscoreDiv.getElementsByClass("tData").get(0);
+			awayHitterTable = awayHitterTable.getElementsByTag("tbody").get(0);
+			Elements awayHitterTr = awayHitterTable.getElementsByTag("tr");
+			String awayHitterResult = getHitterResult(awayHitterTr, inningSize);		
+			
+			Element homeHitterTable = boxscoreDiv.getElementsByClass("tData").get(1);
+			homeHitterTable = homeHitterTable.getElementsByTag("tbody").get(0);
+			Elements homeHitterTr = homeHitterTable.getElementsByTag("tr");
+			String homeHitterResult = getHitterResult(homeHitterTr, inningSize);	
+			
+			//Pitcher
+			//[date], stadium, num, [name], si, result, w, l,	sv, ip, tbf, np, pa, h, hr, hbp, so, r, er, era
+			Element awayPitcherTable = boxscoreDiv.getElementsByClass("tData").get(2);
+			awayPitcherTable = awayPitcherTable.getElementsByTag("tbody").get(0);
+			Elements awayPitcherTr = awayPitcherTable.getElementsByTag("tr");
+			String awayPitcherResult = getPitcherResult(awayPitcherTr);
+			
+			Element homePitcherTable = boxscoreDiv.getElementsByClass("tData").get(3);
+			homePitcherTable = homePitcherTable.getElementsByTag("tbody").get(0);
+			Elements homePitcherTr = homePitcherTable.getElementsByTag("tr");
+			String homePitcherResult = getPitcherResult(homePitcherTr);
+			
+			//Insert Scorebox DB
+			//Insert Home Hitter Record
+			//Insert Away Hitter Record
+			//Insert Home Pitcher Record
+			//Insert Away Picher Record
+			
+			String result = "<br><br>" + awayHitterResult.replaceAll("\n", "<br>") + "<br>" + homeHitterResult.replaceAll("\n", "<br>") + "<br>"
+					+ "<br><br>" + awayPitcherResult.replaceAll("\n", "<br>") + "<br>" + homePitcherResult.replaceAll("\n", "<br>") + "<br>";
+			
+			return result;
+		}
+		
 		@RequestMapping("/getTodayGames")
 		public ModelAndView getTodayGames(RedirectAttributes redirectAttributes) throws IOException 
 		{
@@ -229,6 +312,102 @@ public class DotozamboApplication {
 			return new ModelAndView("redirect:/line_bot_send_notice?msg=" + table);
 		}
 	}
+	private static Map<String, Object> getScoreBoard(Element scoreelement, String stadium)
+	{
+		Map <String, Object> resultMap = new HashMap<String, Object>();
+		
+		//[한화, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 13, 2, 3]
+		//[LG, 0, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 5, 9, 0, 4]
+		String [] scoreArray = scoreelement.text().split(" ");
+		ArrayList<String> scoreList = new ArrayList<String>(Arrays.asList(scoreArray));
+		
+		resultMap.put(stadium + "_team", scoreList.get(0));
+		scoreList.remove(0);
+		resultMap.put(stadium + "_r", scoreList.get(inningSize));
+		scoreList.remove(inningSize);
+		resultMap.put(stadium + "_h", scoreList.get(inningSize));
+		scoreList.remove(inningSize);
+		resultMap.put(stadium + "_e", scoreList.get(inningSize));
+		scoreList.remove(inningSize);
+		resultMap.put(stadium + "_b", scoreList.get(inningSize));
+		scoreList.remove(inningSize);
+		resultMap.put(stadium + "_score", scoreList);
+		
+		return resultMap;
+	}
+	
+	private static String getHitterResult(Elements hitterelements, int inningSize) 
+	{
+		String result = "";
+		int preOrder = 0;
+		int num = 0;
+		for (Element hitter : hitterelements)
+		{
+			String person = "";
+			String order = hitter.getElementsByTag("th").get(0).text();
+			
+			String postion = hitter.getElementsByTag("th").get(1).text();
+			String name = hitter.getElementsByTag("th").get(2).text();
+			
+			List<String> record = new ArrayList<String>(inningSize);
+			for (int i = 0; i < inningSize - 4; i++) {
+				record.add(hitter.getElementsByTag("td").get(i).text());
+			}
+			
+			String ab = hitter.getElementsByAttribute("abbr").get(0).text();
+			String h = hitter.getElementsByAttribute("abbr").get(1).text();
+			String rbi = hitter.getElementsByAttribute("abbr").get(2).text();
+			String r = hitter.getElementsByAttribute("abbr").get(3).text();
+			String avg = hitter.getElementsByAttribute("abbr").get(4).text();
+			
+			int curOrder = Integer.parseInt(order);
+			if (preOrder == curOrder) num++;
+			else num = 0; preOrder = curOrder;
+			
+			person = new String(String.format("%s, %d, %s, %s, [%s], %s, %s, %s, %s, %s\n", 
+												order, num, postion, name, record.toString(), ab, h, rbi, r, avg));
+			
+			result = result + person;
+		}
+		
+		return result;
+	}
+	
+	//Pitcher
+	//[date], stadium, num, [name], si, result, w, l,	sv, ip, tbf, np, pa, h, hr, hbp, so, r, er, era
+	private static String getPitcherResult(Elements pitcherelements)
+	{
+		String result = "";
+		for (Element pitcher : pitcherelements)
+		{
+			String person = "";
+			String name = pitcher.getElementsByClass("name").get(0).text();
+			String si = pitcher.getElementsByTag("td").get(0).text();
+			String _result = pitcher.getElementsByTag("td").get(1).text();
+			String w = pitcher.getElementsByTag("td").get(2).text();
+			String l = pitcher.getElementsByTag("td").get(3).text();
+			String sv = pitcher.getElementsByTag("td").get(4).text();
+			String ip = pitcher.getElementsByTag("td").get(5).text();
+			String tbf = pitcher.getElementsByTag("td").get(6).text();
+			String np = pitcher.getElementsByTag("td").get(7).text();
+			String pa = pitcher.getElementsByTag("td").get(8).text();
+			String h = pitcher.getElementsByTag("td").get(9).text();
+			String hr = pitcher.getElementsByTag("td").get(10).text();
+			String hbp = pitcher.getElementsByTag("td").get(11).text();
+			String so = pitcher.getElementsByTag("td").get(12).text();
+			String r = pitcher.getElementsByTag("td").get(13).text();
+			String er = pitcher.getElementsByTag("td").get(14).text();
+			String era = pitcher.getElementsByTag("td").get(15).text();
+			
+			person = new String(String.format("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s\n", 
+												name, si, _result, w, l, sv, ip, tbf, np, pa, h, hr, hbp, so, r, er,era));
+			
+			result = result + person;
+		}
+		
+		return result;
+	}
+	
 	private static String sendGet(String getUrl) throws IOException 
 	{
 		URL obj = new URL(getUrl);
