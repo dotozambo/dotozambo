@@ -1,8 +1,6 @@
 package com.dotozambo.DAO;
 
 import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -30,15 +28,10 @@ public class ScoreBoardDAO
     	return jdbcTemplate.update(sql,args);
     }
     
-    private String urlEncoded(String str) throws UnsupportedEncodingException 
-	{
-		String encStr = new String (URLEncoder.encode(str, "utf-8"));
-		return encStr.trim();
-	}
-    
-	private String urlDecoded(String str) throws UnsupportedEncodingException 
-	{
-		String decStr = new String (URLDecoder.decode(str, "utf-8"));
-		return decStr.trim();
-	}
+    public String selectLatestGameDate() 
+    {
+    	String sql = "SELECT [date] FROM scoreboard ORDER BY [date] DESC LIMIT 1";
+    	String latestGameDate = jdbcTemplate.queryForObject(sql, null, String.class);
+    	return latestGameDate;
+    }
 }

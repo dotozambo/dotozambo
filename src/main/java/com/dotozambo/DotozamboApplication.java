@@ -8,11 +8,18 @@ import java.net.URL;
 import java.net.HttpURLConnection;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -30,10 +37,12 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.dotozambo.BO.QueryBO;
 import com.dotozambo.DAO.ChatMembersDAO;
 import com.dotozambo.DAO.HitterRecordDAO;
 import com.dotozambo.DAO.PitcherRecordDAO;
 import com.dotozambo.DAO.ScoreBoardDAO;
+import com.dotozambo.DAO.TeamCodeDAO;
 import com.dotozambo.Model.HitterRecord;
 import com.dotozambo.Model.PitcherRecord;
 import com.dotozambo.Model.ScoreBoard;
@@ -56,7 +65,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DotozamboApplication {
 	
-	static String notSupportMsg = "[Dotozambo] : Sorry.., It does Not Supprot Messages!";
+	static String notSupportMsg = "Sorry.., This type does Not Supprot Messages!";
+	static String incorrectFormatMsg = "Must : (어디서). ([기간]. [게임수].) [투수/타자]. [이름]. (홈/어웨이). [기록].";
 	
 	static int inningSize = 12;
 	
@@ -81,6 +91,9 @@ public class DotozamboApplication {
         private LineBotClient lineBotClient;
 		
 		@Autowired
+		QueryBO queryBO;
+		
+		@Autowired
 		ChatMembersDAO chatMemberDAO;
 		@Autowired
 		ScoreBoardDAO scoreBoardDAO;
@@ -88,6 +101,8 @@ public class DotozamboApplication {
 		HitterRecordDAO hitterRecordDAO;
 		@Autowired
 		PitcherRecordDAO pitcherRecordDAO;
+		@Autowired
+		TeamCodeDAO teamCodeDAO;
 		
 		@RequestMapping("/line_bot_callback")
         public void callback(@LineBotMessages List<Event> events) throws LineBotAPIException, UnsupportedEncodingException 
@@ -109,10 +124,21 @@ public class DotozamboApplication {
             		//Text Messages
             		if (abContent instanceof TextContent) {
             			TextContent textContent = (TextContent) abContent;
-            			lineBotClient.sendText(textContent.getFrom(), "[Dotozambo] : " + textContent.getText());
+            			
+            			int result = queryBO.inputStr2QueryStr(textContent.getText());
+            			if (result != -1) {
+            				lineBotClient.sendText(textContent.getFrom(), "[Query Type] : " + result);
+            				return;
+            			}
+            			else {
+            				lineBotClient.sendText(textContent.getFrom(), "[Dotozambo] : " + incorrectFormatMsg);
+            				return;
+            			}
+            			
             		}
             		else {
             			lineBotClient.sendText(abContent.getFrom(), notSupportMsg);
+            			return;
             		}
             	}
             	//Operation
@@ -132,12 +158,14 @@ public class DotozamboApplication {
             			
             			lineBotClient.sendText(userMID, welcomeMsg);
             			chatMemberDAO.addMember(userMID, name);
+            			return;
             	
             		}
             		if (abOperation instanceof BlockedOperation) {
             			//Blocked Frend
             			userMID = abOperation.getMid();
             			chatMemberDAO.deleteMember(userMID);
+            			return;
             		}
             	}
             }
@@ -169,42 +197,113 @@ public class DotozamboApplication {
 		}
 		
 		@RequestMapping("/kboschedule")
-		public String kobSchedule(@RequestParam("month") int month, @RequestParam("year") int year) throws IOException 
+		public Map<String, Object> kboSchedule(@RequestParam("month") int month, @RequestParam("year") int year) throws IOException 
 		{
-			String naverSportsKbaseballUrl = new String(String.format("http://sports.news.naver.com/kbaseball/schedule/index.nhn?month=%2d&year=%4d", month, year));
+			String naverSportsKbaseballUrl = new String(String.format("http://sports.news.naver.com/kbaseball/schedule/index.nhn?month=%02d&year=%04d", month, year));
 			String res = sendGet(naverSportsKbaseballUrl);
 			
 			Document doc = Jsoup.parse(res);
 			Element totalDiv = doc.getElementsByClass("tb_wrap").get(0);
-			Elements divList = totalDiv.getElementsByTag("div");
+			Elements tableList = totalDiv.getElementsByTag("table");
 			
-			String ret = "";
-			for (int i = 1; i < divList.size(); i++) 
+			Map <String, String> teamCodeMap = teamCodeDAO.selectTeamCode();
+			
+			Map<String, Object> resultMap = new HashMap<String, Object>();
+			for (Element table : tableList) 
 			{
-				Element div = divList.get(i);
-				Elements date = div.getElementsByClass("td_date");
-			
-				if (div.text().isEmpty() || date.text().isEmpty()) continue; //Not yet Playing Game
+				Map<String, Object> dateMap = new HashMap<String, Object>();
 				
-				String versus = "";
-				for (int j = 0; j < 5; j++) 
-				{
-					Elements away_team = div.getElementsByClass("team_lft");
-					Elements home_team = div.getElementsByClass("team_rgt");
-					
-					if (away_team.text().isEmpty() || home_team.text().isEmpty()) break; //No Game
-					
-					versus = versus + "<br>" + 
-							away_team.get(j).text() + ": [A] vs [H] : " + home_team.get(j).text() + "<br>";
+				Elements trList = table.getElementsByTag("tr");
+				String date = dateFormat(table.getElementsByClass("td_date").text(), year);
+			
+				if (trList.size() < 2) continue; //No Game Day
+				else {
+					dateMap.put("date", date);
 				}
 				
-				ret = ret + "<br>" + date.text() + "<br>" + versus;
+				for (Element tr : trList) 
+				{
+					Map <String, Object> versusMap = new HashMap<String, Object>();
+					
+					String score = "";
+					if (tr.getElementsByTag("em").get(0).text().equals("VS")) {
+						//Canceled Game
+						continue;
+					}
+					else {
+						score = tr.getElementsByClass("td_score").get(0).text();
+					}
+					
+					String away_team = teamCodeMap.get(tr.getElementsByClass("team_lft").get(0).text().toLowerCase());
+					String home_team = teamCodeMap.get(tr.getElementsByClass("team_rgt").get(0).text().toLowerCase());
+					
+					versusMap.put("away_team", away_team);
+					versusMap.put("home_team", home_team);
+					versusMap.put("score", score);
+					
+					dateMap.put(home_team, versusMap);
+				}
+				if (dateMap.keySet().size() == 1) continue; //All Canceled or Not Yet Play Games
+				else resultMap.put(date, dateMap);
+				
 			}
+			return resultMap;
+		}
+		@RequestMapping("/saveLatestGameDate")
+		public String saveLatestGameDate() throws IOException
+		{
+			Date toDay = new Date();
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
+			String toDayStr = sdf.format(toDay);
 			
-			return ret;
+			int year = Integer.parseInt(toDayStr.split("-")[0]);
+			int month = Integer.parseInt(toDayStr.split("-")[1]);
+			
+			Map<String, Object> gameResultMap = kboSchedule(month, year);
+			List <String> gameList = new ArrayList<String>();
+			gameList.addAll(gameResultMap.keySet());
+			
+			Collections.sort(gameList, new Comparator<String>() {
+			      public int compare(String obj1, String obj2)
+			      {
+			    	  //Sort by DESC
+			    	  return obj2.compareToIgnoreCase(obj1);
+			      }
+			});
+			
+			String latestGameDate = gameList.get(0);
+			String savedLatestGameDate = scoreBoardDAO.selectLatestGameDate();
+			boolean isSaved = false;
+			if (latestGameDate.compareTo(savedLatestGameDate) > 0) {
+				//SaveRecord
+				@SuppressWarnings("unchecked")
+				Map <String, Object> games = (Map <String, Object>) gameResultMap.get(latestGameDate);
+				for (String key : games.keySet()) {
+					if (key.length() == 2) 
+					{
+						@SuppressWarnings("unchecked")
+						Map <String, String> gameMap = (Map <String, String>) games.get(key);
+						String homeTCode = gameMap.get("home_team");
+						String awayTCode = gameMap.get("away_team");
+						
+						if (!saveRecord(latestGameDate, homeTCode, awayTCode).equals("OK"))
+						{
+							Map <String, String> errorMap = new HashMap<String, String>();
+							errorMap.put("latestGameDate", latestGameDate);
+							errorMap.put("home_team", homeTCode);
+							errorMap.put("away_team", awayTCode);
+							return errorMap.toString();
+						}
+					}
+				}
+				isSaved = true;
+			}
+			if (isSaved)
+				return savedLatestGameDate + " : Complete the save";
+			else
+				return savedLatestGameDate + " : Pass the save";
 		}
 		
-		@RequestMapping("/saveRecord")
 		public String saveRecord(@RequestParam("date") String date,
 								 @RequestParam("homeTCode") String homeTCode,
 								 @RequestParam("awayTCode") String awayTCode) throws IOException 
@@ -230,11 +329,12 @@ public class DotozamboApplication {
 			///////////////////////////////////////////////////////////////////////////
 			Element socreBoardTable = doc.getElementsByClass("socreBoard").get(0);
 			socreBoardTable = socreBoardTable.getElementsByTag("tbody").get(0);
+			
 			Element awayScoreTr = socreBoardTable.getElementsByTag("tr").get(0);
-			Map <String, Object> awayScoreMap = getScoreBoard(awayScoreTr, "away");
+			Map <String, Object> awayScoreMap = getScoreBoard(awayScoreTr, awayTCode, "away");
 			
 			Element homeScoreTr = socreBoardTable.getElementsByTag("tr").get(1);
-			Map <String, Object> homeScoreMap = getScoreBoard(homeScoreTr, "home");
+			Map <String, Object> homeScoreMap = getScoreBoard(homeScoreTr, homeTCode,"home");
 			
 			Map <String, Object> scoreMap = new HashMap<String, Object>();
 			scoreMap.put("away", awayScoreMap);
@@ -266,29 +366,25 @@ public class DotozamboApplication {
 			List<Map<String, Object>> homePitcherResult = getPitcherResult(homePitcherTr);
 			//////////////////////////////////////////////////////////////////////////////
 			ScoreBoard sb = new ScoreBoard(scoreMap, date);
-			//scoreBoardDAO.addScoreBoard(sb);
+			scoreBoardDAO.addScoreBoard(sb);
 			for (Map<String, Object> hitter : awayHitterResult)	{
 				HitterRecord away_hr = new HitterRecord(hitter, date, awayTCode, "away");
-				//hitterRecordDAO.addHitterRecord(away_hr);
+				hitterRecordDAO.addHitterRecord(away_hr);
 			}
 			for (Map<String, Object> hitter : homeHitterResult)	{
 				HitterRecord home_hr = new HitterRecord(hitter, date, homeTCode, "home");
-				//hitterRecordDAO.addHitterRecord(home_hr);
+				hitterRecordDAO.addHitterRecord(home_hr);
 			}
 			for (Map<String, Object> pitcher : awayPitcherResult) {
 				PitcherRecord away_pr = new PitcherRecord(pitcher, date, awayTCode, "away");
-				//pitcherRecordDAO.addPitcherRecord(away_pr);
+				pitcherRecordDAO.addPitcherRecord(away_pr);
 			}
 			for (Map<String, Object> pitcher : homePitcherResult) {
-				PitcherRecord home_pr = new PitcherRecord(pitcher, date, awayTCode, "home");
-				//pitcherRecordDAO.addPitcherRecord(home_pr);
+				PitcherRecord home_pr = new PitcherRecord(pitcher, date, homeTCode, "home");
+				pitcherRecordDAO.addPitcherRecord(home_pr);
 			}
 			
-			return sb + "<br>" +
-				   awayHitterResult + "<br>" +
-				   homeHitterResult + "<br>" +
-				   awayPitcherResult + "<br>" +
-				   homePitcherResult + "<br>";
+			return "OK";
 		}
 		
 		@RequestMapping("/getTodayGames")
@@ -332,7 +428,7 @@ public class DotozamboApplication {
 			return new ModelAndView("redirect:/line_bot_send_notice?msg=" + table);
 		}
 	}
-	private static Map<String, Object> getScoreBoard(Element scoreelement, String stadium)
+	private static Map<String, Object> getScoreBoard(Element scoreelement, String team_code, String stadium)
 	{
 		Map <String, Object> resultMap = new HashMap<String, Object>();
 		
@@ -341,7 +437,7 @@ public class DotozamboApplication {
 		String [] scoreArray = scoreelement.text().split(" ");
 		ArrayList<String> scoreList = new ArrayList<String>(Arrays.asList(scoreArray));
 		
-		resultMap.put(stadium + "_team", scoreList.get(0));
+		resultMap.put(stadium + "_team", team_code);
 		scoreList.remove(0);
 		resultMap.put(stadium + "_r", scoreList.get(inningSize));
 		scoreList.remove(inningSize);
@@ -421,6 +517,24 @@ public class DotozamboApplication {
 		}
 		
 		return pitcherList;
+	}
+	
+	private static String dateFormat(String date, int year) 
+	{
+		try 
+		{
+			String _date = date.split(" ")[0].trim();
+			DateFormat sdFormat = new SimpleDateFormat("yyyy M.dd");
+			String tmpDateStr = new String(String.format("%04d ", year)) + _date;
+			Date tmpDate = sdFormat.parse(tmpDateStr);
+			
+			DateFormat _sdFormat = new SimpleDateFormat("yyyyMMdd");
+			return _sdFormat.format(tmpDate);
+		} 
+		catch (ParseException e) {
+			e.printStackTrace();
+			return date;
+		}
 	}
 	
 	private static String sendGet(String getUrl) throws IOException 
