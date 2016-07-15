@@ -9,13 +9,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import com.dotozambo.BO.URLCodecBO;
+
 @Component
 public class TeamCodeDAO {
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 	@Autowired
-	private URLCodec urlCodec;
+	private URLCodecBO urlCodecBO;
 	
 	public Map<String, String> selectTeamCode() throws UnsupportedEncodingException 
 	{
@@ -25,8 +27,8 @@ public class TeamCodeDAO {
 		Map<String, String> encodedMap = new HashMap<String, String> ();
 		for (Map<String, Object> team : teams) 
 		{
-			encodedMap.put(urlCodec.urlDecoded(String.valueOf(team.get("rankname"))).toLowerCase(), 
-							urlCodec.urlDecoded(String.valueOf(team.get("team_code"))));
+			encodedMap.put(urlCodecBO.decode(String.valueOf(team.get("rankname"))).toLowerCase(), 
+							urlCodecBO.decode(String.valueOf(team.get("team_code"))));
 		}
 		return encodedMap;
 	}

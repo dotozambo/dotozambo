@@ -19,7 +19,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -37,7 +36,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import com.dotozambo.BO.QueryBO;
 import com.dotozambo.DAO.ChatMembersDAO;
 import com.dotozambo.DAO.HitterRecordDAO;
 import com.dotozambo.DAO.PitcherRecordDAO;
@@ -65,8 +63,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DotozamboApplication {
 	
-	static String notSupportMsg = "Sorry.., This type does Not Supprot Messages!";
-	static String incorrectFormatMsg = "Must : (어디서). ([기간]. [게임수].) [투수/타자]. [이름]. (홈/어웨이). [기록].";
+	static String notSupportMsg = "지원하지 않는 메시지입니다..";
+	static String incorrectFormatMsg = "(조건) ([기간]:[게임수]) [투수/타자] [이름] (홈/어웨이) [기록]";
 	
 	static int inningSize = 12;
 	
@@ -91,7 +89,7 @@ public class DotozamboApplication {
         private LineBotClient lineBotClient;
 		
 		@Autowired
-		QueryBO queryBO;
+		QueryController queryController;
 		
 		@Autowired
 		ChatMembersDAO chatMemberDAO;
@@ -125,16 +123,8 @@ public class DotozamboApplication {
             		if (abContent instanceof TextContent) {
             			TextContent textContent = (TextContent) abContent;
             			
-            			int result = queryBO.inputStr2QueryStr(textContent.getText());
-            			if (result != -1) {
-            				lineBotClient.sendText(textContent.getFrom(), "[Query Type] : " + result);
-            				return;
-            			}
-            			else {
-            				lineBotClient.sendText(textContent.getFrom(), "[Dotozambo] : " + incorrectFormatMsg);
-            				return;
-            			}
-            			
+            			String retMessage = getQueryRetunValue(textContent.getText());
+            			lineBotClient.sendText(abContent.getFrom(), retMessage);
             		}
             		else {
             			lineBotClient.sendText(abContent.getFrom(), notSupportMsg);
@@ -170,6 +160,28 @@ public class DotozamboApplication {
             	}
             }
         }
+		
+		@RequestMapping("/querytest")
+		public String getQueryRetunValue(@RequestParam("query") String query) throws UnsupportedEncodingException
+		{
+			String msg = new String();
+			Map <String, Object> result = queryController.inputStr2QueryStr(query);
+			String resultStr = (String) result.get("retValue");
+			int retCode = (int) result.get("code");
+			int caseNum = (int) result.get("case");
+			
+			if (caseNum == 0) {
+				msg = String.format("[%d] Query 절반성공.. - %s", retCode, resultStr);
+			}
+			else if (caseNum != -1) {
+				msg = String.format("[%d] Query 성공! - %s", caseNum, resultStr);
+			}
+			else 
+			{
+				msg = String.format("[%d] Query 실패! - %s", retCode, resultStr);
+			}
+			return msg;
+		}
 		
 		@RequestMapping("/line_bot_send_notice")
 		public String toLinebotSendMessage(
@@ -299,9 +311,9 @@ public class DotozamboApplication {
 				isSaved = true;
 			}
 			if (isSaved)
-				return savedLatestGameDate + " : Complete the save";
+				return latestGameDate + "-Record_Saved_Complete";
 			else
-				return savedLatestGameDate + " : Pass the save";
+				return latestGameDate + "-Recording_Pass";
 		}
 		
 		public String saveRecord(@RequestParam("date") String date,

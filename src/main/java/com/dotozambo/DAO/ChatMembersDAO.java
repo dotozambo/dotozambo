@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import com.dotozambo.BO.URLCodecBO;
+
 @Component
 public class ChatMembersDAO {
  
@@ -17,19 +19,19 @@ public class ChatMembersDAO {
 	private JdbcTemplate jdbcTemplate;
  
 	@Autowired
-	private URLCodec urlCodec;
+	private URLCodecBO urlCodecBO;
 	
     public int addMember(String mid, String name) throws UnsupportedEncodingException 
     {
     	String sql = "INSERT INTO chatmembers(mid, name) values(?, ?)";
-    	Object[] args = {urlCodec.urlEncoded(mid), urlCodec.urlEncoded(name)};
+    	Object[] args = {urlCodecBO.encode(mid), urlCodecBO.encode(name)};
     	return jdbcTemplate.update(sql,args);
     }
 
 	public int deleteMember(String mid) throws UnsupportedEncodingException 
 	{
 		String sql = "DELETE FROM chatmembers WHERE mid = ?";
-		Object[] args = {urlCodec.urlEncoded(mid)};
+		Object[] args = {urlCodecBO.encode(mid)};
 		return jdbcTemplate.update(sql,args);
 	}
 	
@@ -43,8 +45,8 @@ public class ChatMembersDAO {
 		{
 			Map<String, String> encodedMap = new HashMap<String, String> ();
 			
-			encodedMap.put("mid", urlCodec.urlDecoded(String.valueOf(member.get("mid"))));
-			encodedMap.put("name", urlCodec.urlDecoded(String.valueOf(member.get("name"))));
+			encodedMap.put("mid", urlCodecBO.encode(String.valueOf(member.get("mid"))));
+			encodedMap.put("name", urlCodecBO.decode(String.valueOf(member.get("name"))));
 			retList.add(encodedMap);
 		}
 		return retList;
