@@ -1,6 +1,9 @@
 package com.dotozambo.DAO;
 
 import java.io.UnsupportedEncodingException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -33,5 +36,34 @@ public class ScoreBoardDAO
     	String sql = "SELECT [date] FROM scoreboard ORDER BY [date] DESC LIMIT 1";
     	String latestGameDate = jdbcTemplate.queryForObject(sql, null, String.class);
     	return latestGameDate;
+    }
+    
+    public Map <String, String> selectLatestGameScoreBoard(String team_code, int gamenum)
+    {
+    	Map <String, String> resultMap = new HashMap<String, String>();
+    	
+    	String sql = String.format(
+    					"SELECT [date], away_team, home_team "
+    				  + "FROM scoreboard "
+    				  + "WHERE away_team = ? OR home_team = ? "
+    				  + "ORDER BY [date] DESC LIMIT ?");
+    	
+    	Object [] obj = {team_code, team_code, gamenum};
+    	
+    	List<Map<String, Object>> queryResult = jdbcTemplate.queryForList(sql, obj);
+    	for (Map <String, Object> map : queryResult) 
+    	{	
+    		if (((String) map.get("away_team")).equals(team_code)) {
+    			resultMap.put((String) map.get("date"), "away");
+    		}
+    		else if (((String) map.get("home_team")).equals(team_code)){
+    			resultMap.put((String) map.get("date"), "home");
+    		}
+    		else {
+    			resultMap.put((String) map.get("date"), "error");
+    		}
+    	}
+    	
+    	return resultMap;
     }
 }

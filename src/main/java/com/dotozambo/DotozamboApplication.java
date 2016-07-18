@@ -399,12 +399,17 @@ public class DotozamboApplication {
 			return "OK";
 		}
 		
+		@RequestMapping("/getlatestgameresult")
+		public String getLatestGameResult(@RequestParam("team_code") String team_code,
+										  @RequestParam("game_num") int game_num) {
+			
+			Map <String, String> resultMap = scoreBoardDAO.selectLatestGameScoreBoard(team_code, game_num);
+			return resultMap.toString();
+		}
+		
 		@RequestMapping("/getTodayGames")
 		public ModelAndView getTodayGames(RedirectAttributes redirectAttributes) throws IOException 
 		{
-			//Date today = new Date();
-			//SimpleDateFormat dateFormater = new SimpleDateFormat("yyyyMMdd");
-			//String dateStr = dateFormater.format(today);
 			
 			String naverUrl = "http://sports.news.naver.com/kbaseball/index.nhn";
 			String res = sendGet(naverUrl);
@@ -416,22 +421,65 @@ public class DotozamboApplication {
 			Elements games = scheduleBox.getElementsByClass("hmb_list_items");
 			
 			String table = "\n***************\n[" + date + "]\n***************\n";
+			
+			String _date = dateFormat(date, 2016);
+			Date today = new Date();
+			SimpleDateFormat dateFormater = new SimpleDateFormat("yyyyMMdd");
+			String todayStr = dateFormater.format(today);
+
+			if (!_date.equals(todayStr)){
+				String noGame = "\n***************\n[" + date + "]\n***************\n" 
+								+ "오늘은 게임이 없습니다..";
+				return new ModelAndView("redirect:/line_bot_send_notice?msg=" + noGame);
+			}
+			
 			for (Element _div : games) 
 			{
 				Elements detail = _div.getElementsByClass("inner");
 				
 				Element awayDiv = detail.get(0);
 				String away_team = awayDiv.text().split(" ")[0];
-				String away_starter = awayDiv.text().split(" ")[1];
+				String away_starter;
+				Map <String, Object> away_spRecord = new HashMap<String, Object>();
+				
+				if (awayDiv.text().split(" ").length == 1) {
+					away_starter = "몰라";
+					away_spRecord.put("w", "?");
+					away_spRecord.put("l", "?");
+					away_spRecord.put("sv", "?");
+					away_spRecord.put("era", "?");
+				}
+				else {
+					away_starter = awayDiv.text().split(" ")[1];
+					away_spRecord = pitcherRecordDAO.selectPitcherDefaultRecord(away_starter);
+				}
 				
 				Element homeDiv = detail.get(1);
 				String home_team = homeDiv.text().split(" ")[0];
-				String home_starter = homeDiv.text().split(" ")[1];
+				String home_starter;
+				Map <String, Object> home_spRecord = new HashMap<String, Object>();
+				
+				if (homeDiv.text().split(" ").length == 1){
+					home_starter = "몰라";
+					home_spRecord.put("w", "?");
+					home_spRecord.put("l", "?");
+					home_spRecord.put("sv", "?");
+					home_spRecord.put("era", "?");
+				}
+				else {
+					home_starter = homeDiv.text().split(" ")[1];
+					home_spRecord = pitcherRecordDAO.selectPitcherDefaultRecord(home_starter);
+				}
 				
 				Element timeDiv = detail.get(2);
+					
+				String line = new String(String.format("%s\n%s(W:%sL:%sS:%sERA:%s)\n[%s]\n%s\n%s(W:%sL:%sS:%sERA:%s)\n***************\n",
+								away_team, 
+								away_starter, away_spRecord.get("w"), away_spRecord.get("l"), away_spRecord.get("sv"), away_spRecord.get("era"),
+								timeDiv.text(), 
+								home_team, 
+								home_starter, home_spRecord.get("w"), home_spRecord.get("l"), home_spRecord.get("sv"), home_spRecord.get("era")));
 				
-				String line = new String(String.format("%s (%s)\n[%s]\n%s (%s)\n***************\n",
-								away_team, away_starter, timeDiv.text(), home_team, home_starter));
 				table = table + line;
 			}
 			
