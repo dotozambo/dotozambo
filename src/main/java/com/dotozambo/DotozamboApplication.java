@@ -442,27 +442,27 @@ public class DotozamboApplication {
 				resultSetMap.put(game.get("away_team"), away_pitcherMap);
 				resultSetMap.put(game.get("home_team"), home_pitcherMap);
 			}
+			
 			String resultStr = "";
 			for (String team : resultSetMap.keySet()) 
 			{
 				@SuppressWarnings("unchecked")
 				Map <String, Object> teamMap = (Map<String, Object>) resultSetMap.get(team);
-				String resultTeamStr = team + "<br>";
+				String resultTeamStr = team + "\n";
 				for (String pitcher : teamMap.keySet()) {
 					@SuppressWarnings("unchecked")
 					Map <String, Object> pitcherMap = (Map<String, Object>) teamMap.get(pitcher);
-					String records = String.format("%s:[npr:%s ip:%s er:%s]<br>", 
+					String records = String.format("%s:[npr:%s ip:%s er:%s]\n", 
 													pitcher, 
 													pitcherMap.get("npr"),
 													pitcherMap.get("ip"),
 													pitcherMap.get("er"));
 					
 					resultTeamStr = resultTeamStr + records;
-					
-					//////////////////////////////////////////
-					toLinebotSendMessage(resultTeamStr, null);
-					//////////////////////////////////////////
 				}
+				//////////////////////////////////////////
+				toLinebotSendMessage(resultTeamStr, null);
+				//////////////////////////////////////////
 				resultStr = resultStr + resultTeamStr;
 			}
 			
