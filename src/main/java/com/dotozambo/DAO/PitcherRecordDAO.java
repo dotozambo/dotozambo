@@ -62,7 +62,7 @@ public class PitcherRecordDAO
     public List<Map <String, Object>> selectAllPitcherRecord(String date, String team_code) throws UnsupportedEncodingException {
     	
     	List<Map <String, Object>> records = new ArrayList<Map<String, Object>>();
-    	String sql = "SELECT [date], team_code, [name], ip, np, er "
+    	String sql = "SELECT [date], team_code, [name], si, ip, np, er "
     				+ "FROM	pitcherrecord "
     				+ "WHERE team_code = ? AND [date] = ?";
     	

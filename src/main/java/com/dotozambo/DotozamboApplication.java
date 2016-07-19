@@ -411,93 +411,62 @@ public class DotozamboApplication {
 			String todayStr = dateFormater.format(today);
 			
 			List<Map <String, String>> gameMap = getTodayGamesMap(todayStr);
+			
+			/*
+			List<Map <String, String>> gameMap = new ArrayList<Map <String, String>>();
+			Map <String, String> test_1 = new HashMap<String, String>();
+			test_1.put("away_team", "kt");
+			test_1.put("home_team", "한화");
+			gameMap.add(test_1);
+			Map <String, String> test_2 = new HashMap<String, String>();
+			test_2.put("away_team", "SK");
+			test_2.put("home_team", "NC");
+			gameMap.add(test_2);
+			Map <String, String> test_3 = new HashMap<String, String>();
+			test_3.put("away_team", "삼성");
+			test_3.put("home_team", "두산");
+			gameMap.add(test_3);
+			*/
+			
 			Map <String, String> teamCode = teamCodeDAO.selectTeamCode();
 			Map <String, Object> resultSetMap = new HashMap<String, Object>();
 			
 			for (Map <String, String> game : gameMap) 
 			{	
-				Map <String, Object> away_pitcherMap = new HashMap<String, Object>();
-				Map <String, Object> home_pitcherMap = new HashMap<String, Object>();
+				String away_team_code = teamCode.get(game.get("away_team").toLowerCase());
+				String home_team_code = teamCode.get(game.get("home_team").toLowerCase());
 				
-				int gameNum = 1;
-				Map <String, String> away_resultMap = scoreBoardDAO.selectLatestGameScoreBoard(teamCode.get(game.get("away_team").toLowerCase()), game_num);
-				for (String date : away_resultMap.keySet()) 
-				{
-					List <Map <String, Object>> away_pitchers = pitcherRecordDAO.selectAllPitcherRecord(date, teamCode.get(game.get("away_team").toLowerCase()));
+				Map <String, Object> away_pitcherMap = recordBO.getRPitcherRecordMap(away_team_code, game_num);
+				Map <String, Object> home_pitcherMap = recordBO.getRPitcherRecordMap(home_team_code, game_num);
+				
+				resultSetMap.put(game.get("away_team"), away_pitcherMap);
+				resultSetMap.put(game.get("home_team"), home_pitcherMap);
+			}
+			String resultStr = "";
+			for (String team : resultSetMap.keySet()) 
+			{
+				@SuppressWarnings("unchecked")
+				Map <String, Object> teamMap = (Map<String, Object>) resultSetMap.get(team);
+				String resultTeamStr = team + "<br>";
+				for (String pitcher : teamMap.keySet()) {
+					@SuppressWarnings("unchecked")
+					Map <String, Object> pitcherMap = (Map<String, Object>) teamMap.get(pitcher);
+					String records = String.format("%s:[npr:%s ip:%s er:%s]<br>", 
+													pitcher, 
+													pitcherMap.get("npr"),
+													pitcherMap.get("ip"),
+													pitcherMap.get("er"));
 					
-					for (Map <String, Object> pitcher : away_pitchers) 
-					{
-						String pitcherName = (String) pitcher.get("name");
-						
-						if (away_pitcherMap.get(pitcherName) == null) 
-						{
-							Map <String, Object> away_pitcherRecordMap = new HashMap <String, Object>();
-							String ipStr = (String) pitcher.get("ip");
-							away_pitcherRecordMap.put("ip",  recordBO.ipString2floatStr(ipStr));
-							away_pitcherRecordMap.put("npr", ((int) pitcher.get("np") * gameNum));
-							away_pitcherRecordMap.put("er", ((int) pitcher.get("er") * gameNum));
-							away_pitcherMap.put(pitcherName, away_pitcherRecordMap);
-						}
-						else 
-						{
-							@SuppressWarnings("unchecked")
-							Map <String, Object> pre_away_pitcherRecordMap = (Map<String, Object>) away_pitcherMap.get(pitcherName);
-							float preIP = (float) pre_away_pitcherRecordMap.get("ip") + recordBO.ipString2floatStr((String) pitcher.get("ip"));
-							int preNPR = (int) pre_away_pitcherRecordMap.get("npr") + ((int) pitcher.get("np") * gameNum);
-							int preER = (int) pre_away_pitcherRecordMap.get("er") + ((int) pitcher.get("er") * gameNum);
-							
-							pre_away_pitcherRecordMap.put("ip", preIP);
-							pre_away_pitcherRecordMap.put("npr", preNPR);
-							pre_away_pitcherRecordMap.put("er", preER);
-							away_pitcherMap.put(pitcherName, pre_away_pitcherRecordMap);
-						}
-					}
-					gameNum++;
-				}
-				
-				gameNum = 1;
-				Map <String, String> home_resultMap = scoreBoardDAO.selectLatestGameScoreBoard(teamCode.get(game.get("home_team").toLowerCase()), game_num);
-				for (String date : home_resultMap.keySet()) 
-				{
-					List <Map <String, Object>> home_pitchers = pitcherRecordDAO.selectAllPitcherRecord(date, teamCode.get(game.get("home_team").toLowerCase()));
+					resultTeamStr = resultTeamStr + records;
 					
-					for (Map <String, Object> pitcher : home_pitchers) 
-					{
-						String pitcherName = (String) pitcher.get("name");
-						
-						if (home_pitcherMap.get(pitcherName) == null) 
-						{
-							Map <String, Object> home_pitcherRecordMap = new HashMap <String, Object>();
-							String ipStr = (String) pitcher.get("ip");
-							home_pitcherRecordMap.put("ip",  recordBO.ipString2floatStr(ipStr));
-							home_pitcherRecordMap.put("npr", ((int) pitcher.get("np") * gameNum));
-							home_pitcherRecordMap.put("er", ((int) pitcher.get("er") * gameNum));
-							home_pitcherMap.put(pitcherName, home_pitcherRecordMap);
-						}
-						else 
-						{
-							@SuppressWarnings("unchecked")
-							Map <String, Object> pre_home_pitcherRecordMap = (Map<String, Object>) home_pitcherMap.get(pitcherName);
-							float preIP = (float) pre_home_pitcherRecordMap.get("ip") + recordBO.ipString2floatStr((String) pitcher.get("ip"));
-							int preNPR = (int) pre_home_pitcherRecordMap.get("npr") + ((int) pitcher.get("np") * gameNum);
-							int preER = (int) pre_home_pitcherRecordMap.get("er") + ((int) pitcher.get("er") * gameNum);
-							
-							pre_home_pitcherRecordMap.put("ip", preIP);
-							pre_home_pitcherRecordMap.put("npr", preNPR);
-							pre_home_pitcherRecordMap.put("er", preER);
-							away_pitcherMap.put(pitcherName, pre_home_pitcherRecordMap);
-						}
-					}
-					gameNum++;
+					//////////////////////////////////////////
+					toLinebotSendMessage(resultTeamStr, null);
+					//////////////////////////////////////////
 				}
-				
-				Map <String, Object> _resultSetMap = new HashMap<String, Object>();
-				_resultSetMap.put("home", home_pitcherMap);
-				_resultSetMap.put("away", away_pitcherMap);
-				resultSetMap.put(teamCode.get(game.get("home_team").toLowerCase()), _resultSetMap);
+				resultStr = resultStr + resultTeamStr;
 			}
 			
-			return resultSetMap.toString();
+			return resultStr;
 		}
 		
 		@RequestMapping("/getTodayGames")

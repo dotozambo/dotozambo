@@ -66,7 +66,7 @@ public class ScoreBoardDAO
     	}
     	
     	//오름차순
-        TreeMap<String, String> treeMap = new TreeMap<String, String>( resultMap );
+        TreeMap<String, String> treeMap = new TreeMap<String, String>(resultMap);
     	return treeMap;
     }
 }
