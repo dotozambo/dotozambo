@@ -47,13 +47,19 @@ public class PitcherRecordDAO
     
     	Map <String, Object> records = new HashMap<String, Object>();
     	String sql = "SELECT w,	l, sv, era FROM pitcherrecord WHERE NAME = ? ORDER BY [date] DESC LIMIT 1";
-    	Object[] args = {urlCodecBO.encode(name)};
+    	////Bug
+    	String urlEncodedStr = urlCodecBO.encode(name);
+    	if (urlEncodedStr.length() > 30) {
+    		urlEncodedStr = urlEncodedStr.substring(0, 30);
+    	}
+    	////
+    	Object[] args = {urlEncodedStr};
     	
     	records = jdbcTemplate.queryForMap(sql, args);
     	return records;
     }
     
-    public List<Map <String, Object>> selectAllPitcherRecord(String date, String team_code) {
+    public List<Map <String, Object>> selectAllPitcherRecord(String date, String team_code) throws UnsupportedEncodingException {
     	
     	List<Map <String, Object>> records = new ArrayList<Map<String, Object>>();
     	String sql = "SELECT [date], team_code, [name], ip, np, er "
@@ -62,6 +68,9 @@ public class PitcherRecordDAO
     	
     	Object [] args = {team_code, date};
     	records = jdbcTemplate.queryForList(sql, args);
+    	for (Map <String, Object> map : records) {
+    		map.put("name", urlCodecBO.decode((String) map.get("name")));
+    	}
     	return records;
     }
 }

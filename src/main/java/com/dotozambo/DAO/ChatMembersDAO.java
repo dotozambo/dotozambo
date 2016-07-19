@@ -45,8 +45,11 @@ public class ChatMembersDAO {
 		{
 			Map<String, String> encodedMap = new HashMap<String, String> ();
 			
-			encodedMap.put("mid", urlCodecBO.encode(String.valueOf(member.get("mid"))));
-			encodedMap.put("name", urlCodecBO.decode(String.valueOf(member.get("name"))));
+			String mid = String.valueOf(member.get("mid"));
+			String name = String.valueOf(member.get("name"));
+			
+			encodedMap.put("mid", urlCodecBO.encode(mid.trim()));
+			encodedMap.put("name", urlCodecBO.decode(name.trim()));
 			retList.add(encodedMap);
 		}
 		return retList;

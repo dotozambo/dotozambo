@@ -36,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.dotozambo.BO.RecordBO;
 import com.dotozambo.DAO.ChatMembersDAO;
 import com.dotozambo.DAO.HitterRecordDAO;
 import com.dotozambo.DAO.PitcherRecordDAO;
@@ -90,6 +91,9 @@ public class DotozamboApplication {
 		
 		@Autowired
 		QueryController queryController;
+		
+		@Autowired
+		RecordBO recordBO;
 		
 		@Autowired
 		ChatMembersDAO chatMemberDAO;
@@ -197,8 +201,8 @@ public class DotozamboApplication {
 			
 			for (Map<String, String> member : members)
 			{
-				String mid = new String(String.valueOf(member.get("mid"))).trim();
-				String name = new String(String.valueOf(member.get("name"))).trim();
+				String mid = new String(String.valueOf(member.get("mid")));
+				String name = new String(String.valueOf(member.get("name")));
 				
 				toUser = toUser + "<br> mid - " + mid + " / " + "name - " + name;
 				lineBotClient.sendText(mid, noticeMsg);
@@ -400,94 +404,217 @@ public class DotozamboApplication {
 		}
 		
 		@RequestMapping("/getlatestgameresult")
-		public String getLatestGameResult(@RequestParam("team_code") String team_code,
-										  @RequestParam("game_num") int game_num) {
+		public String getLatestGameResult(@RequestParam("game_num") int game_num) throws IOException, LineBotAPIException {
 			
-			Map <String, String> resultMap = scoreBoardDAO.selectLatestGameScoreBoard(team_code, game_num);
-			return resultMap.toString();
+			Date today = new Date();
+			SimpleDateFormat dateFormater = new SimpleDateFormat("yyyyMMdd");
+			String todayStr = dateFormater.format(today);
+			
+			List<Map <String, String>> gameMap = getTodayGamesMap(todayStr);
+			Map <String, String> teamCode = teamCodeDAO.selectTeamCode();
+			Map <String, Object> resultSetMap = new HashMap<String, Object>();
+			
+			for (Map <String, String> game : gameMap) 
+			{	
+				Map <String, Object> away_pitcherMap = new HashMap<String, Object>();
+				Map <String, Object> home_pitcherMap = new HashMap<String, Object>();
+				
+				int gameNum = 1;
+				Map <String, String> away_resultMap = scoreBoardDAO.selectLatestGameScoreBoard(teamCode.get(game.get("away_team").toLowerCase()), game_num);
+				for (String date : away_resultMap.keySet()) 
+				{
+					List <Map <String, Object>> away_pitchers = pitcherRecordDAO.selectAllPitcherRecord(date, teamCode.get(game.get("away_team").toLowerCase()));
+					
+					for (Map <String, Object> pitcher : away_pitchers) 
+					{
+						String pitcherName = (String) pitcher.get("name");
+						
+						if (away_pitcherMap.get(pitcherName) == null) 
+						{
+							Map <String, Object> away_pitcherRecordMap = new HashMap <String, Object>();
+							String ipStr = (String) pitcher.get("ip");
+							away_pitcherRecordMap.put("ip",  recordBO.ipString2floatStr(ipStr));
+							away_pitcherRecordMap.put("npr", ((int) pitcher.get("np") * gameNum));
+							away_pitcherRecordMap.put("er", ((int) pitcher.get("er") * gameNum));
+							away_pitcherMap.put(pitcherName, away_pitcherRecordMap);
+						}
+						else 
+						{
+							@SuppressWarnings("unchecked")
+							Map <String, Object> pre_away_pitcherRecordMap = (Map<String, Object>) away_pitcherMap.get(pitcherName);
+							float preIP = (float) pre_away_pitcherRecordMap.get("ip") + recordBO.ipString2floatStr((String) pitcher.get("ip"));
+							int preNPR = (int) pre_away_pitcherRecordMap.get("npr") + ((int) pitcher.get("np") * gameNum);
+							int preER = (int) pre_away_pitcherRecordMap.get("er") + ((int) pitcher.get("er") * gameNum);
+							
+							pre_away_pitcherRecordMap.put("ip", preIP);
+							pre_away_pitcherRecordMap.put("npr", preNPR);
+							pre_away_pitcherRecordMap.put("er", preER);
+							away_pitcherMap.put(pitcherName, pre_away_pitcherRecordMap);
+						}
+					}
+					gameNum++;
+				}
+				
+				gameNum = 1;
+				Map <String, String> home_resultMap = scoreBoardDAO.selectLatestGameScoreBoard(teamCode.get(game.get("home_team").toLowerCase()), game_num);
+				for (String date : home_resultMap.keySet()) 
+				{
+					List <Map <String, Object>> home_pitchers = pitcherRecordDAO.selectAllPitcherRecord(date, teamCode.get(game.get("home_team").toLowerCase()));
+					
+					for (Map <String, Object> pitcher : home_pitchers) 
+					{
+						String pitcherName = (String) pitcher.get("name");
+						
+						if (home_pitcherMap.get(pitcherName) == null) 
+						{
+							Map <String, Object> home_pitcherRecordMap = new HashMap <String, Object>();
+							String ipStr = (String) pitcher.get("ip");
+							home_pitcherRecordMap.put("ip",  recordBO.ipString2floatStr(ipStr));
+							home_pitcherRecordMap.put("npr", ((int) pitcher.get("np") * gameNum));
+							home_pitcherRecordMap.put("er", ((int) pitcher.get("er") * gameNum));
+							home_pitcherMap.put(pitcherName, home_pitcherRecordMap);
+						}
+						else 
+						{
+							@SuppressWarnings("unchecked")
+							Map <String, Object> pre_home_pitcherRecordMap = (Map<String, Object>) home_pitcherMap.get(pitcherName);
+							float preIP = (float) pre_home_pitcherRecordMap.get("ip") + recordBO.ipString2floatStr((String) pitcher.get("ip"));
+							int preNPR = (int) pre_home_pitcherRecordMap.get("npr") + ((int) pitcher.get("np") * gameNum);
+							int preER = (int) pre_home_pitcherRecordMap.get("er") + ((int) pitcher.get("er") * gameNum);
+							
+							pre_home_pitcherRecordMap.put("ip", preIP);
+							pre_home_pitcherRecordMap.put("npr", preNPR);
+							pre_home_pitcherRecordMap.put("er", preER);
+							away_pitcherMap.put(pitcherName, pre_home_pitcherRecordMap);
+						}
+					}
+					gameNum++;
+				}
+				
+				Map <String, Object> _resultSetMap = new HashMap<String, Object>();
+				_resultSetMap.put("home", home_pitcherMap);
+				_resultSetMap.put("away", away_pitcherMap);
+				resultSetMap.put(teamCode.get(game.get("home_team").toLowerCase()), _resultSetMap);
+			}
+			
+			return resultSetMap.toString();
 		}
 		
 		@RequestMapping("/getTodayGames")
 		public ModelAndView getTodayGames(RedirectAttributes redirectAttributes) throws IOException 
 		{
-			
-			String naverUrl = "http://sports.news.naver.com/kbaseball/index.nhn";
-			String res = sendGet(naverUrl);
-			Document doc = Jsoup.parse(res);
-			
-			Element scheduleBox = doc.getElementById("_schedule_box");
-			String date = scheduleBox.getElementsByClass("day").get(0).text();
-			
-			Elements games = scheduleBox.getElementsByClass("hmb_list_items");
-			
-			String table = "\n***************\n[" + date + "]\n***************\n";
-			
-			String _date = dateFormat(date, 2016);
 			Date today = new Date();
 			SimpleDateFormat dateFormater = new SimpleDateFormat("yyyyMMdd");
 			String todayStr = dateFormater.format(today);
-
-			if (!_date.equals(todayStr)){
-				String noGame = "\n***************\n[" + date + "]\n***************\n" 
-								+ "오늘은 게임이 없습니다..";
+			
+			List<Map <String, String>> gameList = getTodayGamesMap(todayStr);
+			
+			String table = "\n***************\n[" + todayStr + "]\n***************\n";
+			if (gameList == null){
+				String noGame = table + "오늘은 게임이 없습니다..";
 				return new ModelAndView("redirect:/line_bot_send_notice?msg=" + noGame);
 			}
 			
-			for (Element _div : games) 
-			{
-				Elements detail = _div.getElementsByClass("inner");
+			for (Map <String, String> gameMap : gameList) {
+			
+				String away_team = gameMap.get("away_team");
+				String home_team = gameMap.get("home_team");
+				String away_starter = gameMap.get("away_starter");
+				String home_starter = gameMap.get("home_starter");
+				String time = gameMap.get("time");
 				
-				Element awayDiv = detail.get(0);
-				String away_team = awayDiv.text().split(" ")[0];
-				String away_starter;
 				Map <String, Object> away_spRecord = new HashMap<String, Object>();
-				
-				if (awayDiv.text().split(" ").length == 1) {
-					away_starter = "몰라";
+				try {
+					away_spRecord = pitcherRecordDAO.selectPitcherDefaultRecord(gameMap.get("away_starter"));
+				}catch (Exception e) {
 					away_spRecord.put("w", "?");
 					away_spRecord.put("l", "?");
 					away_spRecord.put("sv", "?");
 					away_spRecord.put("era", "?");
 				}
-				else {
-					away_starter = awayDiv.text().split(" ")[1];
-					away_spRecord = pitcherRecordDAO.selectPitcherDefaultRecord(away_starter);
-				}
-				
-				Element homeDiv = detail.get(1);
-				String home_team = homeDiv.text().split(" ")[0];
-				String home_starter;
 				Map <String, Object> home_spRecord = new HashMap<String, Object>();
-				
-				if (homeDiv.text().split(" ").length == 1){
-					home_starter = "몰라";
+				try {
+					home_spRecord = pitcherRecordDAO.selectPitcherDefaultRecord(gameMap.get("home_starter"));
+				} catch (Exception e) {
 					home_spRecord.put("w", "?");
 					home_spRecord.put("l", "?");
 					home_spRecord.put("sv", "?");
 					home_spRecord.put("era", "?");
-				}
-				else {
-					home_starter = homeDiv.text().split(" ")[1];
-					home_spRecord = pitcherRecordDAO.selectPitcherDefaultRecord(home_starter);
-				}
-				
-				Element timeDiv = detail.get(2);
-					
-				String line = new String(String.format("%s\n%s(W:%sL:%sS:%sERA:%s)\n[%s]\n%s\n%s(W:%sL:%sS:%sERA:%s)\n***************\n",
-								away_team, 
-								away_starter, away_spRecord.get("w"), away_spRecord.get("l"), away_spRecord.get("sv"), away_spRecord.get("era"),
-								timeDiv.text(), 
-								home_team, 
-								home_starter, home_spRecord.get("w"), home_spRecord.get("l"), home_spRecord.get("sv"), home_spRecord.get("era")));
+			 	}
+				String line = new String(String.format("%s\n%s(%sW/%sL/%sS/ERA:%s)\n[%s]\n%s\n%s(%sW/%sL/%sS/ERA:%s)\n***************\n",
+									away_team, 
+									away_starter, away_spRecord.get("w"), away_spRecord.get("l"), away_spRecord.get("sv"), away_spRecord.get("era"),
+									time, 
+									home_team, 
+									home_starter, home_spRecord.get("w"), home_spRecord.get("l"), home_spRecord.get("sv"), home_spRecord.get("era")));
 				
 				table = table + line;
 			}
 			
 			table = URLEncoder.encode(table, "utf-8");
-			
 			return new ModelAndView("redirect:/line_bot_send_notice?msg=" + table);
 		}
 	}
+	
+	
+	private static List<Map <String, String>> getTodayGamesMap(String inputday) throws IOException {
+		
+		String naverUrl = "http://sports.news.naver.com/kbaseball/index.nhn";
+		String res = sendGet(naverUrl);
+		Document doc = Jsoup.parse(res);
+		
+		Element scheduleBox = doc.getElementById("_schedule_box");
+		String date = scheduleBox.getElementsByClass("day").get(0).text();
+		Elements games = scheduleBox.getElementsByClass("hmb_list_items");
+		
+		String _date = dateFormat(date, 2016);
+		
+		if (!_date.equals(inputday)) return null;
+
+		List<Map <String, String>> todayGameMap = new ArrayList<Map<String, String>>();		
+		for (Element _div : games) 
+		{
+			Elements detail = _div.getElementsByClass("inner");
+			
+			Element awayDiv = detail.get(0);
+			String away_team = awayDiv.text().split(" ")[0];
+			String away_starter;
+			
+			
+			if (awayDiv.text().split(" ").length == 1) {
+				away_starter = "몰라";
+			}
+			else {
+				away_starter = awayDiv.text().split(" ")[1];
+			}
+			
+			Element homeDiv = detail.get(1);
+			String home_team = homeDiv.text().split(" ")[0];
+			String home_starter;
+			
+			
+			if (homeDiv.text().split(" ").length == 1){
+				home_starter = "몰라";
+			}
+			else {
+				home_starter = homeDiv.text().split(" ")[1];
+			}
+			
+			Element timeDiv = detail.get(2);
+			
+			Map <String, String> gameMap = new HashMap<>();
+			gameMap.put("away_team", away_team);
+			gameMap.put("away_starter", away_starter);
+			gameMap.put("home_team", home_team);
+			gameMap.put("home_starter", home_starter);
+			gameMap.put("time", timeDiv.text());
+			gameMap.put("date", inputday);
+			todayGameMap.add(gameMap);
+		}
+		return todayGameMap;
+	}
+	
+	
 	private static Map<String, Object> getScoreBoard(Element scoreelement, String team_code, String stadium)
 	{
 		Map <String, Object> resultMap = new HashMap<String, Object>();

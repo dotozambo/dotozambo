@@ -4,6 +4,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -64,6 +65,8 @@ public class ScoreBoardDAO
     		}
     	}
     	
-    	return resultMap;
+    	//오름차순
+        TreeMap<String, String> treeMap = new TreeMap<String, String>( resultMap );
+    	return treeMap;
     }
 }
