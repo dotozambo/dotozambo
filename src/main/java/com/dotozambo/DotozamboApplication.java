@@ -429,7 +429,7 @@ public class DotozamboApplication {
 			*/
 			
 			Map <String, String> teamCode = teamCodeDAO.selectTeamCode();
-			Map <String, Object> resultSetMap = new HashMap<String, Object>();
+			List<Map <String, Object>> gameSet = new ArrayList<Map<String, Object>>();
 			
 			for (Map <String, String> game : gameMap) 
 			{	
@@ -439,34 +439,55 @@ public class DotozamboApplication {
 				Map <String, Object> away_pitcherMap = recordBO.getRPitcherRecordMap(away_team_code, game_num);
 				Map <String, Object> home_pitcherMap = recordBO.getRPitcherRecordMap(home_team_code, game_num);
 				
+				Map <String, Object> resultSetMap = new HashMap<String, Object>();
 				resultSetMap.put(game.get("away_team"), away_pitcherMap);
 				resultSetMap.put(game.get("home_team"), home_pitcherMap);
+				gameSet.add(resultSetMap);
 			}
 			
-			String resultStr = "";
-			for (String team : resultSetMap.keySet()) 
+			String resultTotalStr = "";
+			for (Map <String, Object> game : gameSet) 
 			{
-				@SuppressWarnings("unchecked")
-				Map <String, Object> teamMap = (Map<String, Object>) resultSetMap.get(team);
-				String resultTeamStr = team + "\n";
-				for (String pitcher : teamMap.keySet()) {
+				String resultGameStr = "";
+				for (String team : game.keySet()) 
+				{
 					@SuppressWarnings("unchecked")
-					Map <String, Object> pitcherMap = (Map<String, Object>) teamMap.get(pitcher);
-					String records = String.format("%s:[npr:%s ip:%s er:%s]\n", 
-													pitcher, 
-													pitcherMap.get("npr"),
-													pitcherMap.get("ip"),
-													pitcherMap.get("er"));
+					Map <String, Object> teamMap = (Map<String, Object>) game.get(team);
+					int pitcher_num = 0;
+					int npr_total = 0;
+					double ip_total = 0.0;
+					int er_total = 0;
+					for (String pitcher : teamMap.keySet()) 
+					{
+						@SuppressWarnings("unchecked")
+						Map <String, Object> pitcherMap = (Map<String, Object>) teamMap.get(pitcher);
+						
+						/*
+						String records = String.format("%s:[npr:%s ip:%s er:%s]\n", 
+														pitcher, 
+														pitcherMap.get("npr"),
+														pitcherMap.get("ip"),
+														pitcherMap.get("er"));
+						 */
 					
-					resultTeamStr = resultTeamStr + records;
+						pitcher_num++;
+						npr_total += (int) pitcherMap.get("npr");
+						ip_total += Double.parseDouble((String) pitcherMap.get("ip"));
+						er_total += (int) pitcherMap.get("er");
+					
+					}
+					String avg = String.format("총%d명:[총_npr:%d 게임평균_ip:%.1f 투수평균_er:%.1f]\n",
+												pitcher_num, npr_total,((double) (ip_total / game_num)),((double) er_total / (pitcher_num)));
+					
+					resultGameStr = resultGameStr + team + " 최근 " + game_num + " 게임\n" + avg;
 				}
+				resultTotalStr = resultTotalStr + resultGameStr;
 				//////////////////////////////////////////
-				toLinebotSendMessage(resultTeamStr, null);
+				toLinebotSendMessage(resultGameStr, null);
 				//////////////////////////////////////////
-				resultStr = resultStr + resultTeamStr;
 			}
 			
-			return resultStr;
+			return resultTotalStr;
 		}
 		
 		@RequestMapping("/getTodayGames")
