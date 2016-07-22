@@ -39,12 +39,12 @@ public class ScoreBoardDAO
     	return latestGameDate;
     }
     
-    public Map <String, String> selectLatestGameScoreBoard(String team_code, int gamenum)
+    public Map <String, Object> selectLatestGameScoreBoard(String team_code, int gamenum)
     {
-    	Map <String, String> resultMap = new HashMap<String, String>();
+    	Map <String, Object> resultMap = new HashMap<String, Object>();
     	
     	String sql = String.format(
-    					"SELECT [date], away_team, home_team "
+    					"SELECT [date], away_team, home_team, away_score, home_score, away_r, away_h, home_r, home_h "
     				  + "FROM scoreboard "
     				  + "WHERE away_team = ? OR home_team = ? "
     				  + "ORDER BY [date] DESC LIMIT ?");
@@ -52,21 +52,12 @@ public class ScoreBoardDAO
     	Object [] obj = {team_code, team_code, gamenum};
     	
     	List<Map<String, Object>> queryResult = jdbcTemplate.queryForList(sql, obj);
-    	for (Map <String, Object> map : queryResult) 
-    	{	
-    		if (((String) map.get("away_team")).equals(team_code)) {
-    			resultMap.put((String) map.get("date"), "away");
-    		}
-    		else if (((String) map.get("home_team")).equals(team_code)){
-    			resultMap.put((String) map.get("date"), "home");
-    		}
-    		else {
-    			resultMap.put((String) map.get("date"), "error");
-    		}
+    	for (Map <String, Object> map : queryResult) {
+    		resultMap.put((String) map.get("date"), map);
     	}
     	
     	//오름차순
-        TreeMap<String, String> treeMap = new TreeMap<String, String>(resultMap);
+        TreeMap<String, Object> treeMap = new TreeMap<String, Object>(resultMap);
     	return treeMap;
     }
 }

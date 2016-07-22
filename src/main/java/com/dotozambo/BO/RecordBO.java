@@ -1,6 +1,8 @@
 package com.dotozambo.BO;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -56,16 +58,129 @@ public class RecordBO {
 		return result;
 	}
 	
-	public Map <String, Object> getRPitcherRecordMap(String team_code, int game_num) throws UnsupportedEncodingException 
+	public Map<String, Object> getScoreBoard_AVG(Map<String, Object> scoreboardMap, String team_code) 
 	{
+		Map <String, Object> score_lost_Map = new HashMap<String, Object>();
 		
+		List <Double> inningScore = new ArrayList<Double>(
+				Arrays.asList(0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+		List <Double> inningLost = new ArrayList<Double>(
+				Arrays.asList(0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0));
+		
+		double total_lost_r = 0;
+		double total_score_r = 0;
+		double total_lost_h = 0;
+		double total_score_h = 0;
+		
+		int game_num = scoreboardMap.keySet().size();
+		
+		for (String date : scoreboardMap.keySet()) 
+		{
+			@SuppressWarnings("unchecked")
+			Map <String, Object> gameMap = (Map<String, Object>) scoreboardMap.get(date);
+			String home_team_code = (String) gameMap.get("home_team");
+			
+			boolean isHome = false;
+			String lost_board = "";
+			String score_board = "";
+			
+			if (team_code.equals(home_team_code)) isHome = true;
+			
+			int lost_r = 0;
+			int score_r = 0;
+			int lost_h = 0;
+			int score_h = 0;
+			
+			if (isHome) 
+			{
+				lost_board = (String) gameMap.get("away_score");
+				score_board = (String) gameMap.get("home_score");
+				lost_r = (int) gameMap.get("away_r");
+				score_r = (int) gameMap.get("home_r");
+				lost_h = (int) gameMap.get("away_h");
+				score_h = (int) gameMap.get("home_h");
+			}
+			else {
+				lost_board = (String) gameMap.get("home_score");
+				score_board = (String) gameMap.get("away_score");
+				lost_r = (int) gameMap.get("home_r");
+				score_r = (int) gameMap.get("away_r");
+				lost_h = (int) gameMap.get("home_h");
+				score_h = (int) gameMap.get("away_h");
+			}
+			
+			lost_board = lost_board.replaceAll("-", "0");
+			lost_board = lost_board.replaceAll(" ", "");
+			
+			score_board = score_board.replaceAll("-", "0");
+			score_board = score_board.replaceAll(" ", "");
+			
+			for (int i = 0; i < score_board.split(",").length; i++) 
+			{
+				double score = inningScore.get(i) + Double.parseDouble(score_board.split(",")[i]);
+				inningScore.remove(i);
+				inningScore.add(i, score);
+			}
+			
+			for (int i = 0; i < lost_board.split(",").length; i++) 
+			{
+				double lost = inningLost.get(i) + Double.parseDouble(lost_board.split(",")[i]);
+				inningLost.remove(i);
+				inningLost.add(i, lost);	
+			}
+			
+			total_score_r += (double) score_r;
+			total_score_h += (double) score_h;
+			total_lost_r += (double) lost_r;
+			total_lost_h += (double) lost_h;
+		}
+		
+		for (int i = 0; i < inningScore.size(); i++) 
+		{
+			double avg = inningScore.get(i) / game_num;
+			avg = Math.floor(avg * 10) / 10;
+			inningScore.remove(i);
+			inningScore.add(i, avg);
+		}
+		
+		for (int i = 0; i < inningLost.size(); i++) 
+		{
+			double avg = inningLost.get(i) / game_num;
+			avg = Math.floor(avg * 10) / 10;
+			inningLost.remove(i);
+			inningLost.add(i, avg);
+		}
+		
+		Map <String, Object> scoreMap = new HashMap<String, Object>();
+		scoreMap.put("board", inningScore);
+		scoreMap.put("r_total", (int) total_score_r);
+		scoreMap.put("h_total", (int) total_score_h);
+		scoreMap.put("r_avg", (float) (total_score_r / game_num));
+		scoreMap.put("h_avg", (float) (total_score_h / game_num));
+		
+		Map <String, Object> lostMap = new HashMap<String, Object>();
+		lostMap.put("board", inningLost);
+		lostMap.put("r_total", (int) total_lost_r);
+		lostMap.put("h_total", (int) total_lost_h);
+		lostMap.put("r_avg", (float) (total_lost_r / game_num));
+		lostMap.put("h_avg", (float) (total_lost_h / game_num));
+		
+		score_lost_Map.put("score", scoreMap);
+		score_lost_Map.put("lost", lostMap);
+		
+		return score_lost_Map;
+	}
+	
+	public Map <String, Object> getRPitcherRecord_SUM(Map <String, Object> scoreboardMap, String team_code) throws UnsupportedEncodingException 
+	{
 		Date today = new Date();
 		SimpleDateFormat dateFormater = new SimpleDateFormat("yyyyMMdd");
 		String todayStr = dateFormater.format(today);
 		
+		int game_num = scoreboardMap.keySet().size();
+
 		Map <String, Object> return_pitcherMap = new HashMap<String, Object>();
-		Map <String, String> resultMap = scoreBoardDAO.selectLatestGameScoreBoard(team_code, game_num);
-		for (String date : resultMap.keySet()) 
+		for (String date : scoreboardMap.keySet()) 
 		{
 			int fatigued = getDiffDay(todayStr, date) + (game_num + 1);
 			if (fatigued < 1) fatigued = 1;

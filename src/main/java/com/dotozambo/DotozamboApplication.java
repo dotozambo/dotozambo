@@ -403,6 +403,7 @@ public class DotozamboApplication {
 			return "OK";
 		}
 		
+		@SuppressWarnings("unchecked")
 		@RequestMapping("/getlatestgameresult")
 		public String getLatestGameResult(@RequestParam("game_num") int game_num) throws IOException, LineBotAPIException {
 			
@@ -410,9 +411,9 @@ public class DotozamboApplication {
 			SimpleDateFormat dateFormater = new SimpleDateFormat("yyyyMMdd");
 			String todayStr = dateFormater.format(today);
 			
-			List<Map <String, String>> gameMap = getTodayGamesMap(todayStr);
+			//List<Map <String, String>> gameMap = getTodayGamesMap(todayStr);
 			
-			/*
+			
 			List<Map <String, String>> gameMap = new ArrayList<Map <String, String>>();
 			Map <String, String> test_1 = new HashMap<String, String>();
 			test_1.put("away_team", "kt");
@@ -426,32 +427,46 @@ public class DotozamboApplication {
 			test_3.put("away_team", "삼성");
 			test_3.put("home_team", "두산");
 			gameMap.add(test_3);
-			*/
+			
 			
 			Map <String, String> teamCode = teamCodeDAO.selectTeamCode();
-			List<Map <String, Object>> gameSet = new ArrayList<Map<String, Object>>();
+			List<Map <String, Object>> rpRecordSet = new ArrayList<Map<String, Object>>();
+			List<Map <String, Object>> scoreBoardSet = new ArrayList<Map<String, Object>>();
+			
+			Map <String, Object> away_team_score_map = new HashMap<String, Object>();
+			Map <String, Object> home_team_score_map = new HashMap<String, Object>();
 			
 			for (Map <String, String> game : gameMap) 
 			{	
 				String away_team_code = teamCode.get(game.get("away_team").toLowerCase());
+				away_team_score_map = scoreBoardDAO.selectLatestGameScoreBoard(away_team_code, game_num);
+				
 				String home_team_code = teamCode.get(game.get("home_team").toLowerCase());
+				home_team_score_map = scoreBoardDAO.selectLatestGameScoreBoard(home_team_code, game_num);
 				
-				Map <String, Object> away_pitcherMap = recordBO.getRPitcherRecordMap(away_team_code, game_num);
-				Map <String, Object> home_pitcherMap = recordBO.getRPitcherRecordMap(home_team_code, game_num);
+				Map <String, Object> away_rpMap = recordBO.getRPitcherRecord_SUM(away_team_score_map, away_team_code);
+				Map <String, Object> home_rpMap = recordBO.getRPitcherRecord_SUM(home_team_score_map, home_team_code);
 				
-				Map <String, Object> resultSetMap = new HashMap<String, Object>();
-				resultSetMap.put(game.get("away_team"), away_pitcherMap);
-				resultSetMap.put(game.get("home_team"), home_pitcherMap);
-				gameSet.add(resultSetMap);
+				Map <String, Object> rpRecordMap = new HashMap<String, Object>();
+				rpRecordMap.put(game.get("home_team"), home_rpMap);
+				rpRecordMap.put(game.get("away_team"), away_rpMap);
+				rpRecordSet.add(rpRecordMap);
+				
+				Map <String, Object> away_sbMap = recordBO.getScoreBoard_AVG(away_team_score_map, away_team_code);
+				Map <String, Object> home_sbMap = recordBO.getScoreBoard_AVG(home_team_score_map, home_team_code);
+				
+				Map <String, Object> scoreRecordMap = new HashMap<String, Object>();
+				scoreRecordMap.put(game.get("home_team"), home_sbMap);
+				scoreRecordMap.put(game.get("away_team"), away_sbMap);
+				scoreBoardSet.add(scoreRecordMap);
 			}
 			
-			String resultTotalStr = "";
-			for (Map <String, Object> game : gameSet) 
+			String rpRecordTotalStr = "";
+			for (Map <String, Object> game : rpRecordSet) 
 			{
 				String resultGameStr = "";
 				for (String team : game.keySet()) 
 				{
-					@SuppressWarnings("unchecked")
 					Map <String, Object> teamMap = (Map<String, Object>) game.get(team);
 					int pitcher_num = 0;
 					int npr_total = 0;
@@ -459,7 +474,6 @@ public class DotozamboApplication {
 					int er_total = 0;
 					for (String pitcher : teamMap.keySet()) 
 					{
-						@SuppressWarnings("unchecked")
 						Map <String, Object> pitcherMap = (Map<String, Object>) teamMap.get(pitcher);
 						
 						/*
@@ -479,15 +493,52 @@ public class DotozamboApplication {
 					String avg = String.format("총%d명:[총_npr:%d 게임평균_ip:%.1f 투수평균_er:%.1f]\n",
 												pitcher_num, npr_total,((double) (ip_total / game_num)),((double) er_total / (pitcher_num)));
 					
-					resultGameStr = resultGameStr + team + " 최근 " + game_num + " 게임\n" + avg;
+					resultGameStr = resultGameStr + team + " 최근 " + game_num + " 게임 [RP] 기록\n" + avg;
 				}
-				resultTotalStr = resultTotalStr + resultGameStr;
+				rpRecordTotalStr = rpRecordTotalStr + resultGameStr;
 				//////////////////////////////////////////
-				toLinebotSendMessage(resultGameStr, null);
+				//toLinebotSendMessage(resultGameStr, null);
+				log.info("RP Record {}", resultGameStr);
 				//////////////////////////////////////////
 			}
 			
-			return resultTotalStr;
+			String scoreboardRecordTotalStr = "";
+			for (Map <String, Object> game : scoreBoardSet) 
+			{
+				String resultGameStr = "";
+				for (String team : game.keySet()) 
+				{
+					Map <String, Object> homeSb = (Map<String, Object>) game.get(team);
+				
+					Map <String, Object> board = (Map<String, Object>) homeSb.get("score");
+					List<Double> innings = (List<Double>) board.get("board");
+					int r_total = (int) board.get("r_total");
+					int h_total = (int) board.get("h_total");
+					float r_avg = (float) board.get("r_avg");
+					float h_avg = (float) board.get("h_avg");
+				
+					String scoreStr = String.format("이닝평균득점:[%s]\n게임평균득점:%.1f 게임평균안타:%.1f 총득점:%d 총안타:%d\n", 
+													innings.toString(), r_avg, h_avg, r_total, h_total);
+				
+					board = (Map<String, Object>) homeSb.get("lost");
+					innings = (List<Double>) board.get("board");
+					r_total = (int) board.get("r_total");
+					h_total = (int) board.get("h_total");
+					r_avg = (float) board.get("r_avg");
+					h_avg = (float) board.get("h_avg");
+				
+					String lostStr = String.format("이닝평균실점:[%s]\n게임평균실점:%.1f 게임평균피안타:%.1f 총실점:%d 총피안타:%d\n", 
+													innings.toString(), r_avg, h_avg, r_total, h_total);
+				
+					resultGameStr = resultGameStr + team + " 최근 " + game_num + " 게임 [Score] 기록\n" + scoreStr + lostStr;
+				}
+				scoreboardRecordTotalStr = scoreboardRecordTotalStr + resultGameStr;
+				///////////////////////////////////////////////////////////
+				//toLinebotSendMessage(resultGameStr, null);
+				log.info("ScoreBoard {}", resultGameStr);
+				///////////////////////////////////////////////////////////
+			}
+			return (rpRecordTotalStr + scoreboardRecordTotalStr).replaceAll("\n", "<br>");
 		}
 		
 		@RequestMapping("/getTodayGames")
