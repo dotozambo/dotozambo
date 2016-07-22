@@ -411,9 +411,9 @@ public class DotozamboApplication {
 			SimpleDateFormat dateFormater = new SimpleDateFormat("yyyyMMdd");
 			String todayStr = dateFormater.format(today);
 			
-			//List<Map <String, String>> gameMap = getTodayGamesMap(todayStr);
+			List<Map <String, String>> gameMap = getTodayGamesMap(todayStr);
 			
-			
+			/*
 			List<Map <String, String>> gameMap = new ArrayList<Map <String, String>>();
 			Map <String, String> test_1 = new HashMap<String, String>();
 			test_1.put("away_team", "kt");
@@ -427,7 +427,7 @@ public class DotozamboApplication {
 			test_3.put("away_team", "삼성");
 			test_3.put("home_team", "두산");
 			gameMap.add(test_3);
-			
+			*/
 			
 			Map <String, String> teamCode = teamCodeDAO.selectTeamCode();
 			List<Map <String, Object>> rpRecordSet = new ArrayList<Map<String, Object>>();
