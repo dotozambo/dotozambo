@@ -497,8 +497,8 @@ public class DotozamboApplication {
 				}
 				rpRecordTotalStr = rpRecordTotalStr + resultGameStr;
 				//////////////////////////////////////////
-				//toLinebotSendMessage(resultGameStr, null);
-				log.info("RP Record {}", resultGameStr);
+				toLinebotSendMessage(resultGameStr, null);
+				//log.info("RP Record {}", resultGameStr);
 				//////////////////////////////////////////
 			}
 			
@@ -534,8 +534,8 @@ public class DotozamboApplication {
 				}
 				scoreboardRecordTotalStr = scoreboardRecordTotalStr + resultGameStr;
 				///////////////////////////////////////////////////////////
-				//toLinebotSendMessage(resultGameStr, null);
-				log.info("ScoreBoard {}", resultGameStr);
+				toLinebotSendMessage(resultGameStr, null);
+				//log.info("ScoreBoard {}", resultGameStr);
 				///////////////////////////////////////////////////////////
 			}
 			return (rpRecordTotalStr + scoreboardRecordTotalStr).replaceAll("\n", "<br>");
